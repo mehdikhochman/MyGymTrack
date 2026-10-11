@@ -1,7 +1,8 @@
 import { neon } from '@neondatabase/serverless';
 import { DEFAULT_SETTINGS, addDays, monday, today } from './config';
 
-export const sql = neon(process.env.DATABASE_URL!);
+// The Neon integration on Vercel sets DATABASE_URL or POSTGRES_URL depending on its prefix setting.
+export const sql = neon((process.env.DATABASE_URL || process.env.POSTGRES_URL)!);
 
 export type Set = { id: number; session_id: number; muscle: string; exercise: string; weight_kg: number; reps: number };
 export type Perf = { date: string; weight_kg: number; reps: number };
