@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { addSet, deleteSet, getLast } from '@/app/actions';
-import { MUSCLES, formatDate } from '@/lib/config';
+import { MUSCLES, formatDate, plural } from '@/lib/config';
 import type { Perf, Set } from '@/lib/db';
 
 type Props = { sessionId: number; initialMuscles: string[]; initialSets: Set[]; exercises: Record<string, string[]> };
@@ -76,7 +76,7 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
 
       {muscles.map((m) => (
         <section key={m}>
-          <h2>{m} <span className="muted">{sets.filter((s) => s.muscle === m).length} séries</span></h2>
+          <h2>{m} <span className="muted">{plural(sets.filter((s) => s.muscle === m).length, 'série')}</span></h2>
           <div className="list">
             {lists[m].map((e) => (
               <div key={e}>

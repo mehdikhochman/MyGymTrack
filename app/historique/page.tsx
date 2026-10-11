@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatDate } from '@/lib/config';
+import { formatDate, plural } from '@/lib/config';
 import { sql } from '@/lib/db';
 
 export default async function History() {
@@ -14,7 +14,7 @@ export default async function History() {
       <div className="list">
         {sessions.map((s) => (
           <Link key={s.id} href={`/seance/${s.id}`} className="item">
-            <b>{formatDate(s.date)}</b> <span className="muted">{s.muscles || 'vide'} · {s.sets} séries</span>
+            <b>{formatDate(s.date)}</b> <span className="muted">{s.muscles || 'vide'} · {plural(s.sets, 'série')}</span>
           </Link>
         ))}
       </div>
