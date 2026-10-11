@@ -13,6 +13,15 @@ Next.js 16 (App Router) · Postgres Neon · Claude Haiku 5.5 · déployé sur Ve
 - **Coach** : « Analyser ma semaine » envoie au modèle 4 semaines de séries par muscle, la progression des exercices principaux, les calories/protéines des 14 derniers jours, la tendance du poids et les 10 dernières notes. Chaque rapport est sauvegardé.
 - **Chercheur** : cron hebdomadaire (lundi ~5h UTC) qui cherche des études récentes sur des sources fiables et enregistre au plus 5 notes.
 
+## Interface instantanée
+
+Chaque tap met l'écran à jour tout de suite ; le serveur suit en arrière-plan.
+- Onglets et liens principaux préchargés en continu (re-préchargés après chaque modification) : changer de page n'attend pas le réseau. Sinon, un squelette s'affiche immédiatement.
+- Séries, repas, pesées, notes, objectifs : ajout et suppression affichés avant la réponse du serveur (`useInstantList`, `useOptimistic`). En cas d'échec, l'élément revient et un message s'affiche. Supprimer un élément encore en cours d'enregistrement attend son vrai id.
+- « Commencer » ouvre la séance sans attendre sa création en base ; la dernière performance de chaque exercice est préchargée avec la page.
+- Suppression de séance et déconnexion : la page suivante s'affiche d'abord, la requête part ensuite (une server action lancée pendant une navigation la bloquerait jusqu'à sa fin).
+- Seule exception : l'analyse du coach dépend de l'IA (~20 s) ; un indicateur s'affiche immédiatement.
+
 ## Structure
 
 ```
@@ -32,7 +41,7 @@ schema.sql      création des tables
 
 | Service | Limite gratuite | Usage de l'app |
 |---|---|---|
-| Vercel Hobby – fonctions | 1 M d'invocations/mois, 4 h CPU actif, durée max 300 s | quelques centaines d'invocations/mois ; le chercheur est limité à 300 s, le coach à 60 s |
+| Vercel Hobby – fonctions | 1 M d'invocations/mois, 4 h CPU actif, durée max 300 s | quelques milliers d'invocations/mois avec le préchargement (< 1 % du quota) ; le chercheur est limité à 300 s, le coach à 60 s |
 | Vercel Hobby – cron | fréquence minimale 1×/jour, précision ±59 min | 1 cron, 1×/semaine |
 | Neon Free | 0,5 Go par projet, 100 CU-heures/mois, mise en veille après 5 min | quelques Mo par an ; la base dort la plupart du temps |
 | Anthropic API | payant à l'usage (pas d'offre gratuite) | voir coût estimé ci-dessous |

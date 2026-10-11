@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { DEFAULT_SETTINGS, addDays, monday, today } from './config';
+import { DEFAULT_SETTINGS, EXERCISES, MUSCLES, addDays, monday, today } from './config';
 
 // The Neon integration on Vercel sets DATABASE_URL or POSTGRES_URL depending on its prefix setting.
 export const sql = neon((process.env.DATABASE_URL || process.env.POSTGRES_URL)!);
@@ -28,15 +28,27 @@ export async function dayTotals(date = today()) {
   return r as { kcal: number; protein: number };
 }
 
-// Sets of the most recent other session that included this exercise.
-export async function lastPerformance(exercise: string, sessionId: number) {
-  return (await sql`
-    select se.date::text as date, s.weight_kg, s.reps from sets s join sessions se on se.id = s.session_id
-    where s.exercise = ${exercise} and s.session_id = (
-      select s2.session_id from sets s2 join sessions se2 on se2.id = s2.session_id
-      where s2.exercise = ${exercise} and s2.session_id <> ${sessionId}
-      order by se2.date desc, s2.session_id desc limit 1)
-    order by s.id`) as Perf[];
+// For every exercise: the sets of its most recent session other than this one (preloaded so opening an exercise is instant).
+export async function lastPerformances(sessionId: number): Promise<Record<string, Perf[]>> {
+  const rows = await sql`
+    select exercise, date::text as date, weight_kg, reps from (
+      select s.id, s.exercise, se.date, s.weight_kg, s.reps,
+        dense_rank() over (partition by s.exercise order by se.date desc, s.session_id desc) as r
+      from sets s join sessions se on se.id = s.session_id
+      where s.session_id <> ${sessionId}) t
+    where r = 1 order by id`;
+  const last: Record<string, Perf[]> = {};
+  for (const r of rows) (last[r.exercise] ??= []).push({ date: r.date, weight_kg: r.weight_kg, reps: r.reps });
+  return last;
+}
+
+// Predefined exercises per muscle, plus any custom ones used before.
+export async function exerciseLists() {
+  const lists = Object.fromEntries(MUSCLES.map((m) => [m, [...EXERCISES[m]]]));
+  for (const u of await sql`select distinct muscle, exercise from sets order by exercise`) {
+    if (!lists[u.muscle]?.includes(u.exercise)) lists[u.muscle]?.push(u.exercise);
+  }
+  return lists;
 }
 
 export async function weightTrend(weeks = 12) {

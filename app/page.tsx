@@ -14,8 +14,8 @@ export default async function Home() {
     <>
       <h1>{formatDate(today())}</h1>
       <div className="stack">
-        {current && <Link href={`/seance/${current.id}`} className="button primary">Reprendre la séance du jour</Link>}
-        <Link href="/seance" className={current ? 'button' : 'button primary'}>Nouvelle séance</Link>
+        {current && <Link prefetch href={`/seance/${current.id}`} className="button primary">Reprendre la séance du jour</Link>}
+        <Link prefetch href="/seance" className={current ? 'button' : 'button primary'}>Nouvelle séance</Link>
       </div>
 
       <h2>Objectifs de la semaine</h2>
@@ -27,7 +27,7 @@ export default async function Home() {
       </div>
 
       <h2>Aujourd&apos;hui</h2>
-      <Link href="/nutrition" className="card block">
+      <Link prefetch href="/nutrition" className="card block">
         <Bar label="Calories" value={food.kcal} min={Number(settings.kcal)} max={Number(settings.kcal)} unit=" kcal" />
         <Bar label="Protéines" value={food.protein} min={Number(settings.protein)} max={Number(settings.protein)} unit=" g" />
       </Link>

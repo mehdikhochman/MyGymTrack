@@ -11,13 +11,14 @@ const LINKS = [
   ['/reglages', 'Réglages'],
 ];
 
+// Tabs are fully prefetched (and re-prefetched after every change), so switching is instant.
 export default function Nav() {
   const path = usePathname();
   if (path === '/login') return null;
   return (
     <nav className="tabs">
       {LINKS.map(([href, label]) => (
-        <Link key={href} href={href} className={(href === '/' ? path === '/' : path.startsWith(href)) ? 'on' : ''}>
+        <Link key={href} href={href} prefetch className={(href === '/' ? path === '/' : path.startsWith(href)) ? 'on' : ''}>
           {label}
         </Link>
       ))}

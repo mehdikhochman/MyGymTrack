@@ -1,5 +1,5 @@
-import { deleteNote, runCoach } from '../actions';
-import Submit from '@/components/Submit';
+import CoachRun from '@/components/CoachRun';
+import Notes from '@/components/Notes';
 import { sql } from '@/lib/db';
 
 export const maxDuration = 60;
@@ -23,9 +23,7 @@ export default async function Coach() {
   return (
     <>
       <h1>Coach</h1>
-      <form action={runCoach}>
-        <Submit className="primary" pendingText="Analyse en cours…">Analyser ma semaine</Submit>
-      </form>
+      <CoachRun />
 
       {latest && (
         <div className="card">
@@ -41,19 +39,7 @@ export default async function Coach() {
       ))}
 
       <h2>Notes de recherche</h2>
-      {notes.length === 0 && <p className="muted">Les notes arrivent chaque lundi.</p>}
-      {notes.map((n) => (
-        <div key={n.id} className="card">
-          <div className="row">
-            <h3>{n.title}</h3>
-            <form action={deleteNote.bind(null, n.id)}>
-              <Submit className="icon" confirm="Supprimer cette note ?">×</Submit>
-            </form>
-          </div>
-          <p>{n.summary}</p>
-          <p className="muted">{when(n.created_at)} · <a href={n.source_url} target="_blank" rel="noopener noreferrer">Source</a></p>
-        </div>
-      ))}
+      <Notes notes={notes.map((n) => ({ id: n.id, title: n.title, summary: n.summary, source_url: n.source_url, date: when(n.created_at) }))} />
     </>
   );
 }

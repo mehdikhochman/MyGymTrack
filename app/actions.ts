@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { COOKIE, MAX_AGE, guard, makeToken, passwordOk } from '@/lib/auth';
-import { sql, lastPerformance, type Set } from '@/lib/db';
+import { sql, type Set } from '@/lib/db';
 import { DEFAULT_SETTINGS, MUSCLES, today } from '@/lib/config';
 import { coachReport } from '@/lib/ai';
 import { coachData } from '@/lib/coach';
@@ -15,6 +15,7 @@ const num = (v: FormDataEntryValue | null) => {
   return n;
 };
 const date = (v: FormDataEntryValue | null) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : today());
+// Purges the client cache so every page shows fresh data; the tabs then re-prefetch themselves (see Nav).
 const refresh = () => revalidatePath('/', 'layout');
 
 export async function login(_: string | undefined, fd: FormData) {
@@ -28,23 +29,21 @@ export async function login(_: string | undefined, fd: FormData) {
 
 export async function logout() {
   (await cookies()).delete(COOKIE);
-  redirect('/login');
 }
 
 // Sessions & sets
 
-export async function startSession(fd: FormData) {
+export async function startSession(day: string) {
   await guard();
-  const muscles = fd.getAll('muscle').map(String).filter((m) => MUSCLES.includes(m));
-  const [{ id }] = await sql`insert into sessions (date) values (${date(fd.get('date'))}) returning id`;
-  redirect(`/seance/${id}?m=${encodeURIComponent(muscles.join(','))}`);
+  const [{ id }] = await sql`insert into sessions (date) values (${date(day)}) returning id`;
+  refresh();
+  return id as number;
 }
 
 export async function deleteSession(id: number) {
   await guard();
   await sql`delete from sessions where id = ${id}`;
   refresh();
-  redirect('/historique');
 }
 
 export async function addSet(s: Omit<Set, 'id'>) {
@@ -53,17 +52,14 @@ export async function addSet(s: Omit<Set, 'id'>) {
   const [row] = await sql`
     insert into sets (session_id, muscle, exercise, weight_kg, reps)
     values (${s.session_id}, ${s.muscle}, ${s.exercise.trim()}, ${s.weight_kg}, ${Math.round(s.reps)}) returning *`;
+  refresh();
   return row as Set;
 }
 
 export async function deleteSet(id: number) {
   await guard();
   await sql`delete from sets where id = ${id}`;
-}
-
-export async function getLast(exercise: string, sessionId: number) {
-  await guard();
-  return lastPerformance(exercise, sessionId);
+  refresh();
 }
 
 // Food & body weight
@@ -71,9 +67,10 @@ export async function getLast(exercise: string, sessionId: number) {
 export async function addMeal(fd: FormData) {
   await guard();
   const name = String(fd.get('name') ?? '').trim() || null;
-  await sql`insert into meals (date, name, calories, protein_g)
-    values (${date(fd.get('date'))}, ${name}, ${Math.round(num(fd.get('calories')))}, ${num(fd.get('protein') || '0')})`;
+  const [{ id }] = await sql`insert into meals (date, name, calories, protein_g)
+    values (${date(fd.get('date'))}, ${name}, ${Math.round(num(fd.get('calories')))}, ${num(fd.get('protein') || '0')}) returning id`;
   refresh();
+  return id as number;
 }
 
 export async function deleteMeal(id: number) {
@@ -84,8 +81,9 @@ export async function deleteMeal(id: number) {
 
 export async function addWeight(fd: FormData) {
   await guard();
-  await sql`insert into body_weight (date, weight_kg) values (${date(fd.get('date'))}, ${num(fd.get('weight'))})`;
+  const [{ id }] = await sql`insert into body_weight (date, weight_kg) values (${date(fd.get('date'))}, ${num(fd.get('weight'))}) returning id`;
   refresh();
+  return id as number;
 }
 
 export async function deleteWeight(id: number) {

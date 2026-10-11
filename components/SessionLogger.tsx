@@ -1,57 +1,79 @@
 'use client';
 
-import { useState } from 'react';
-import { addSet, deleteSet, getLast } from '@/app/actions';
+import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { addSet, deleteSet } from '@/app/actions';
 import { MUSCLES, formatDate, plural } from '@/lib/config';
+import { deletedSessions, unsentDeletes } from '@/lib/instant';
 import type { Perf, Set } from '@/lib/db';
 
-type Props = { sessionId: number; initialMuscles: string[]; initialSets: Set[]; exercises: Record<string, string[]> };
+type Props = {
+  sessionId: number | Promise<number>; // a promise while a new session is still being created
+  initialMuscles: string[];
+  initialSets: Set[];
+  exercises: Record<string, string[]>;
+  last: Record<string, Perf[]>;
+};
 type Open = { muscle: string; exercise: string };
 
-export default function SessionLogger({ sessionId, initialMuscles, initialSets, exercises }: Props) {
+// Every action updates the screen first and syncs with the server in the background.
+export default function SessionLogger({ sessionId, initialMuscles, initialSets, exercises, last: lastProp }: Props) {
+  const router = useRouter();
+  const [last] = useState(lastProp); // frozen: later refreshes would include this session's own sets
   const [muscles, setMuscles] = useState(initialMuscles);
   const [sets, setSets] = useState(initialSets);
   const [lists, setLists] = useState(exercises);
   const [open, setOpen] = useState<Open | null>(null);
-  const [last, setLast] = useState<Record<string, Perf[]>>({});
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
-  const [busy, setBusy] = useState(false);
+  const saving = useRef(new Map<number, Promise<Set>>()); // temporary id -> saved row
+  const nextTempId = useRef(-1);
 
   const setsOf = (exercise: string) => sets.filter((s) => s.exercise === exercise);
 
-  async function openExercise(muscle: string, exercise: string) {
+  function openExercise(muscle: string, exercise: string) {
     if (open?.exercise === exercise) return setOpen(null);
     setOpen({ muscle, exercise });
     // Prefill with the latest set of this session, else the first set from last time.
-    const prefill = (p?: { weight_kg: number; reps: number }) => {
-      setWeight(p ? String(p.weight_kg) : '');
-      setReps(p ? String(p.reps) : '');
-    };
-    const mine = setsOf(exercise);
-    prefill(mine.at(-1) ?? last[exercise]?.[0]);
-    if (!last[exercise]) {
-      const perf = await getLast(exercise, sessionId);
-      setLast((l) => ({ ...l, [exercise]: perf }));
-      if (!mine.length) prefill(perf[0]);
-    }
+    const p = setsOf(exercise).at(-1) ?? last[exercise]?.[0];
+    setWeight(p ? String(p.weight_kg) : '');
+    setReps(p ? String(p.reps) : '');
   }
 
-  async function add() {
-    if (!open || busy) return;
-    setBusy(true);
+  function add() {
+    const weight_kg = Number(weight.replace(',', '.'));
+    const r = Math.round(Number(reps));
+    if (!open || !(weight_kg >= 0) || !(r > 0)) return alert('Série invalide : vérifie le poids et les répétitions.');
+    const temp: Set = { id: nextTempId.current--, session_id: 0, ...open, weight_kg, reps: r };
+    setSets((s) => [...s, temp]);
+    const saved = Promise.resolve(sessionId).then((session_id) => addSet({ session_id, ...open, weight_kg, reps: r }));
+    saving.current.set(temp.id, saved);
+    saved.then(
+      (row) => setSets((s) => s.map((x) => (x.id === temp.id ? row : x))),
+      () => {
+        setSets((s) => s.filter((x) => x.id !== temp.id));
+        alert("La série n'a pas pu être enregistrée.");
+      },
+    );
+  }
+
+  async function remove(set: Set) {
+    setSets((s) => s.filter((x) => x.id !== set.id));
     try {
-      const row = await addSet({ session_id: sessionId, ...open, weight_kg: Number(weight.replace(',', '.')), reps: Number(reps) });
-      setSets((s) => [...s, row]);
+      const id = set.id < 0 ? (await saving.current.get(set.id))!.id : set.id;
+      await deleteSet(id);
     } catch {
-      alert('Série invalide : vérifie le poids et les répétitions.');
+      setSets((s) => [...s, set]);
+      alert("La série n'a pas pu être supprimée.");
     }
-    setBusy(false);
   }
 
-  async function remove(id: number) {
-    setSets((s) => s.filter((x) => x.id !== id));
-    await deleteSet(id);
+  async function removeSession() {
+    if (!confirm('Supprimer cette séance et toutes ses séries ?')) return;
+    const id = await sessionId;
+    deletedSessions.add(id);
+    unsentDeletes.add(id);
+    router.push('/historique');
   }
 
   function addCustom(muscle: string, name: string) {
@@ -86,14 +108,14 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
                 {open?.exercise === e && (
                   <div className="panel">
                     <p className="muted">
-                      {!last[e] ? 'Chargement…' : last[e].length
+                      {last[e]
                         ? <>Dernière fois ({formatDate(last[e][0].date)}) : {last[e].map((p) => `${p.weight_kg}×${p.reps}`).join(' · ')}</>
                         : 'Première fois sur cet exercice'}
                     </p>
                     {setsOf(e).map((s, i) => (
                       <div key={s.id} className="row set">
                         <span>{i + 1}. {s.weight_kg} kg × {s.reps}</span>
-                        <button className="icon" onClick={() => remove(s.id)} aria-label="Supprimer">×</button>
+                        <button className="icon" onClick={() => remove(s)} aria-label="Supprimer">×</button>
                       </div>
                     ))}
                     <div className="inputs">
@@ -110,7 +132,7 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
                         <small>reps</small>
                       </div>
                     </div>
-                    <button className="primary" disabled={busy || !weight || !reps} onClick={add}>Ajouter la série</button>
+                    <button className="primary" disabled={!weight || !reps} onClick={add}>Ajouter la série</button>
                   </div>
                 )}
               </div>
@@ -133,6 +155,8 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
           <button key={m} className="chip" onClick={() => setMuscles((ms) => MUSCLES.filter((x) => ms.includes(x) || x === m))}>+ {m}</button>
         ))}
       </div>
+
+      <button className="danger danger-zone" onClick={removeSession}>Supprimer la séance</button>
     </>
   );
 }

@@ -1,11 +1,12 @@
 'use client';
 
-import { useActionState } from 'react';
-import { login } from '../actions';
+import { useActionState, useEffect } from 'react';
+import { login, logout } from '../actions';
 import Submit from '@/components/Submit';
 
 export default function Login() {
   const [error, action] = useActionState(login, undefined);
+  useEffect(() => { logout(); }, []); // opening this page signs out, so "Se déconnecter" is a plain link
   return (
     <form action={action} className="card stack login">
       <h1>MyGymTrack</h1>
