@@ -4,12 +4,18 @@ import { sql } from '@/lib/db';
 
 export const maxDuration = 60;
 
+const ICONS: Record<string, string> = { Bilan: '📋', 'Ce qui va bien': '✅', 'Problème principal': '⚠️' };
+
 // Report = blocks separated by a blank line, each starting with its heading.
 function Report({ content }: { content: string }) {
-  return content.split('\n\n').map((block, i) => {
-    const [title, ...lines] = block.split('\n');
-    return <div key={i}><h3>{title}</h3><p className="pre">{lines.join('\n')}</p></div>;
-  });
+  return (
+    <div className="report">
+      {content.split('\n\n').map((block, i) => {
+        const [title, ...lines] = block.split('\n');
+        return <div key={i}><h3>{ICONS[title] ?? '🎯'} {title}</h3><p className="pre">{lines.join('\n')}</p></div>;
+      })}
+    </div>
+  );
 }
 
 export default async function Coach() {
@@ -23,11 +29,13 @@ export default async function Coach() {
   return (
     <>
       <h1>Coach</h1>
+      <p className="subtitle">Analyse IA de ta semaine, basée sur tes données</p>
       <CoachRun />
 
       {latest && (
-        <div className="card">
-          <p className="muted">{when(latest.created_at)}</p>
+        <div className="card spaced">
+          <p className="muted small">Dernier rapport · {when(latest.created_at)}</p>
+          <div className="divider" />
           <Report content={latest.content} />
         </div>
       )}

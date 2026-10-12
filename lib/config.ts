@@ -58,4 +58,8 @@ export function formatDate(date: string): string {
   return new Date(date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+export function formatLongDate(date: string): string {
+  return new Date(date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
 export const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;

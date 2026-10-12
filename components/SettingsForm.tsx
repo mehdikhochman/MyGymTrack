@@ -21,14 +21,22 @@ export default function SettingsForm({ settings }: { settings: Record<string, st
   }
 
   return (
-    <form action={save} className="card stack">
-      <label className="field">Calories / jour <input name="kcal" inputMode="numeric" defaultValue={settings.kcal} /></label>
-      <label className="field">Protéines / jour (g) <input name="protein" inputMode="numeric" defaultValue={settings.protein} /></label>
-      <label className="field">Repos entre séries (s) <input name="rest" inputMode="numeric" defaultValue={settings.rest} /></label>
-      <p className="muted">Séries par semaine (ex. 12-16 ou 12)</p>
-      {MUSCLES.map((m) => (
-        <label key={m} className="field">{m} <input name={`sets:${m}`} defaultValue={settings[`sets:${m}`]} /></label>
-      ))}
+    <form action={save}>
+      <h2>Nutrition</h2>
+      <div className="list">
+        <label className="field">Calories / jour <input name="kcal" inputMode="numeric" defaultValue={settings.kcal} /></label>
+        <label className="field">Protéines / jour (g) <input name="protein" inputMode="numeric" defaultValue={settings.protein} /></label>
+      </div>
+      <h2>Entraînement</h2>
+      <div className="list">
+        <label className="field">Repos entre séries (s) <input name="rest" inputMode="numeric" defaultValue={settings.rest} /></label>
+      </div>
+      <h2>Séries par semaine (ex. 12-16 ou 12)</h2>
+      <div className="list">
+        {MUSCLES.map((m) => (
+          <label key={m} className="field">{m} <input name={`sets:${m}`} defaultValue={settings[`sets:${m}`]} /></label>
+        ))}
+      </div>
       <button className="primary">{saving || done ? '✓ Enregistré' : 'Enregistrer'}</button>
     </form>
   );

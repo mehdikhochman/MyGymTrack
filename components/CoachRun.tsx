@@ -2,12 +2,13 @@
 
 import { useFormStatus } from 'react-dom';
 import { runCoach } from '@/app/actions';
+import Icon from './Icon';
 
 function Button() {
   const { pending } = useFormStatus();
   return (
     <>
-      <button className="primary" disabled={pending}>{pending ? 'Analyse en cours… (~20 s)' : 'Analyser ma semaine'}</button>
+      <button className="primary hero-cta" disabled={pending}><Icon name="coach" /> {pending ? 'Analyse en cours… (~20 s)' : 'Analyser ma semaine'}</button>
       {pending && <div className="skeleton" />}
     </>
   );

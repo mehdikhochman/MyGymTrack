@@ -3,13 +3,14 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import Icon, { type IconName } from './Icon';
 
-const LINKS = [
-  ['/', 'Accueil'],
-  ['/nutrition', 'Nutrition'],
-  ['/historique', 'Historique'],
-  ['/coach', 'Coach'],
-  ['/reglages', 'Réglages'],
+const LINKS: [string, string, IconName][] = [
+  ['/', 'Accueil', 'home'],
+  ['/nutrition', 'Nutrition', 'food'],
+  ['/historique', 'Historique', 'history'],
+  ['/coach', 'Coach', 'coach'],
+  ['/reglages', 'Réglages', 'settings'],
 ];
 
 // Tabs are fully prefetched (and re-prefetched after every change), so switching is instant.
@@ -37,8 +38,9 @@ export default function Nav() {
   if (path === '/login') return null;
   return (
     <nav className="tabs">
-      {LINKS.map(([href, label]) => (
+      {LINKS.map(([href, label, icon]) => (
         <Link key={href} href={href} prefetch className={(href === '/' ? path === '/' : path.startsWith(href)) ? 'on' : ''}>
+          <Icon name={icon} />
           {label}
         </Link>
       ))}

@@ -3,10 +3,13 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { deleteSession } from '@/app/actions';
-import { formatDate, plural } from '@/lib/config';
+import Icon from './Icon';
+import { plural } from '@/lib/config';
 import { deletedSessions, unsentDeletes } from '@/lib/instant';
 
-type Session = { id: number; date: string; sets: number; muscles: string };
+type Session = { id: number; date: string; sets: number; volume: number; muscles: string };
+
+const day = (date: string, opts: Intl.DateTimeFormatOptions) => new Date(date + 'T12:00:00Z').toLocaleDateString('fr-FR', { ...opts, timeZone: 'UTC' });
 
 export default function HistoryList({ sessions }: { sessions: Session[] }) {
   useEffect(() => {
@@ -22,7 +25,13 @@ export default function HistoryList({ sessions }: { sessions: Session[] }) {
     <div className="list">
       {visible.map((s) => (
         <Link key={s.id} href={`/seance/${s.id}`} prefetch className="item">
-          <b>{formatDate(s.date)}</b> <span className="muted">{s.muscles || 'vide'} · {plural(s.sets, 'série')}</span>
+          <span className="date-chip"><b>{day(s.date, { day: 'numeric' })}</b><small>{day(s.date, { month: 'short' })}</small></span>
+          <span className="grow">
+            {s.muscles || 'Séance vide'}
+            <br />
+            <span className="muted small">{day(s.date, { weekday: 'long' })} · {plural(s.sets, 'série')} · {s.volume.toLocaleString('fr-FR')} kg</span>
+          </span>
+          <span className="chev"><Icon name="chevron" size={18} /></span>
         </Link>
       ))}
     </div>

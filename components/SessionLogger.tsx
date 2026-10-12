@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addSet, deleteSet } from '@/app/actions';
 import Exercise3D from './Exercise3D';
+import Icon from './Icon';
 import RestTimer, { unlockSound } from './RestTimer';
 import { MUSCLES, e1rm, formatDate, nextTarget, plural } from '@/lib/config';
 import { deletedSessions, unsentDeletes } from '@/lib/instant';
@@ -21,7 +22,8 @@ type Props = {
 };
 type Open = { muscle: string; exercise: string };
 
-const format = (p: { weight_kg: number; reps: number }) => `${p.weight_kg}×${p.reps}`;
+const format = (p: { weight_kg: number; reps: number }) => `${p.weight_kg} kg × ${p.reps}`;
+const short = (p: { weight_kg: number; reps: number }) => `${p.weight_kg}×${p.reps}`;
 
 // Every action updates the screen first and syncs with the server in the background.
 export default function SessionLogger({ sessionId, initialMuscles, initialSets, exercises, last: lastProp, best: bestProp, rest }: Props) {
@@ -97,75 +99,87 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
     openExercise(muscle, exercise);
   }
 
-  const step = (v: string, d: number) => String(Math.max(0, Math.round((Number(v.replace(',', '.')) + d) * 100) / 100));
+  // Unchecking a set deletes it and puts its values back in the input row (one tap to redo it).
+  function uncheck(set: Set) {
+    setWeight(String(set.weight_kg));
+    setReps(String(set.reps));
+    remove(set);
+  }
+
   const done = [...new Set(sets.map((s) => s.exercise))];
+  const volume = sets.reduce((t, s) => t + s.weight_kg * s.reps, 0);
 
   return (
     <>
+      <div className="session-stats">
+        <div><span className="muted small">Séries</span><b>{sets.length}</b></div>
+        <div><span className="muted small">Volume</span><b>{Math.round(volume).toLocaleString('fr-FR')} kg</b></div>
+        <div><span className="muted small">Exercices</span><b>{done.length}</b></div>
+      </div>
+
       {done.length > 0 && (
         <div className="card">
           {done.map((e) => (
-            <p key={e} className="summary"><b>{e}</b> {setsOf(e).map(format).join(' · ')}</p>
+            <p key={e} className="small"><b>{e}</b> <span className="muted">{setsOf(e).map(short).join(' · ')}</span></p>
           ))}
         </div>
       )}
 
       {muscles.map((m) => (
         <section key={m}>
-          <h2>{m} <span className="muted">{plural(sets.filter((s) => s.muscle === m).length, 'série')}</span></h2>
+          <h2>{m} · {plural(sets.filter((s) => s.muscle === m).length, 'série')}</h2>
           <div className="list">
             {lists[m].map((e) => (
               <div key={e}>
                 <button className={open?.exercise === e ? 'item on' : 'item'} onClick={() => openExercise(m, e)}>
-                  {e} {setsOf(e).length > 0 && <span className="badge">{setsOf(e).length}</span>}
+                  <span className="grow">{e}</span>
+                  {setsOf(e).length > 0 && <span className="badge">{setsOf(e).length}</span>}
+                  <span className="chev"><Icon name="chevron" size={18} /></span>
                 </button>
                 {open?.exercise === e && (
-                  <div className="panel">
-                    <p className="muted">
-                      {last[e]
-                        ? <>Dernière fois ({formatDate(last[e][0].date)}) : {last[e].map(format).join(' · ')}</>
-                        : 'Première fois sur cet exercice'}
-                    </p>
-                    {last[e] && (
-                      <p className="target">Objectif : {format(nextTarget(last[e]))}</p>
-                    )}
-                    <button className="link" onClick={() => setDemo(!demo)}>{demo ? 'Masquer le mouvement' : '▶ Voir le mouvement en 3D'}</button>
-                    {demo && <Exercise3D move={moveFor(e, m)} />}
-                    {setsOf(e).map((s, i) => (
-                      <div key={s.id} className="row set">
-                        <span>
-                          {i + 1}. {s.weight_kg} kg × {s.reps}
-                          {best[e] !== undefined && e1rm(s) > best[e] && <span className="pr">🏆 Record</span>}
-                        </span>
-                        <button className="icon" onClick={() => remove(s)} aria-label="Supprimer">×</button>
-                      </div>
-                    ))}
-                    <div className="inputs">
-                      <div className="stepper">
-                        <button onClick={() => setWeight(step(weight, -2.5))}>−</button>
-                        <input inputMode="decimal" value={weight} onChange={(ev) => setWeight(ev.target.value)} aria-label="Poids (kg)" />
-                        <button onClick={() => setWeight(step(weight, 2.5))}>+</button>
-                        <small>kg</small>
-                      </div>
-                      <div className="stepper">
-                        <button onClick={() => setReps(step(reps, -1))}>−</button>
-                        <input inputMode="numeric" value={reps} onChange={(ev) => setReps(ev.target.value)} aria-label="Répétitions" />
-                        <button onClick={() => setReps(step(reps, 1))}>+</button>
-                        <small>reps</small>
-                      </div>
+                  <div className="exercise-body">
+                    <div className="row">
+                      <p className="muted small">
+                        {last[e] ? <>Dernière fois · {formatDate(last[e][0].date)}</> : 'Première fois sur cet exercice'}
+                      </p>
+                      <button className="ghost" onClick={() => setDemo(!demo)}><Icon name="cube" size={18} /> {demo ? 'Masquer' : '3D'}</button>
                     </div>
-                    <button className="primary" disabled={!weight || !reps} onClick={add}>Ajouter la série</button>
+                    {last[e] && <span className="target">🎯 Objectif {format(nextTarget(last[e]))}</span>}
+                    {demo && <Exercise3D move={moveFor(e, m)} />}
+                    <table className="sets">
+                      <thead>
+                        <tr><th>Série</th><th>Précédent</th><th>kg</th><th>Reps</th><th>✓</th></tr>
+                      </thead>
+                      <tbody>
+                        {setsOf(e).map((s, i) => (
+                          <tr key={s.id} className="done">
+                            <td>{best[e] !== undefined && e1rm(s) > best[e] ? <span className="pr" title="Record">🏆</span> : i + 1}</td>
+                            <td className="prev">{last[e]?.[i] ? short(last[e][i]) : '—'}</td>
+                            <td>{s.weight_kg}</td>
+                            <td>{s.reps}</td>
+                            <td><button className="check on" onClick={() => uncheck(s)} aria-label="Annuler la série"><Icon name="check" /></button></td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td>{setsOf(e).length + 1}</td>
+                          <td className="prev">{last[e]?.[setsOf(e).length] ? short(last[e][setsOf(e).length]) : '—'}</td>
+                          <td><input inputMode="decimal" value={weight} onChange={(ev) => setWeight(ev.target.value)} aria-label="Poids (kg)" /></td>
+                          <td><input inputMode="numeric" value={reps} onChange={(ev) => setReps(ev.target.value)} aria-label="Répétitions" /></td>
+                          <td><button className="check" disabled={!weight || !reps} onClick={add} aria-label="Valider la série"><Icon name="check" /></button></td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
             ))}
-            <form className="row" onSubmit={(ev) => {
+            <form className="item" onSubmit={(ev) => {
               ev.preventDefault();
               addCustom(m, (ev.currentTarget.elements.namedItem('exercise') as HTMLInputElement).value);
               ev.currentTarget.reset();
             }}>
               <input name="exercise" placeholder="Autre exercice…" />
-              <button>OK</button>
+              <button className="ghost">Ajouter</button>
             </form>
           </div>
         </section>
@@ -178,7 +192,7 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
         ))}
       </div>
 
-      <button className="danger danger-zone" onClick={removeSession}>Supprimer la séance</button>
+      <button className="danger end" onClick={removeSession}>Supprimer la séance</button>
       <RestTimer end={restEnd} setEnd={setRestEnd} />
     </>
   );

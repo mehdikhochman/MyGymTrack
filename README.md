@@ -25,6 +25,14 @@ Analyse des fonctionnalités publiques (sites, docs, comparatifs 2026), sans dé
 
 Les démos 3D (`components/Exercise3D.tsx`, `lib/moves.ts`) utilisent three.js, chargé uniquement à l'ouverture d'une démo : un mannequin articulé boucle entre deux poses clés par type de mouvement (33 mouvements, chaque exercice y est associé ; un exercice perso prend le mouvement type de son muscle).
 
+## Design
+
+Repris des conventions de ces apps (sans copier leurs visuels) :
+- **Hevy** : saisie en tableau *Série · Précédent · kg · Reps · ✓* ; ✓ valide la série pré-remplie (décocher la supprime et remet ses valeurs) ; minuteur de repos flottant ; stats de séance (séries, volume) ; barre d'onglets à icônes.
+- **MacroFactor** : anneaux calories/protéines, carte « Dépense estimée » avec gros chiffre, ajout rapide en puces, courbe de poids (ligne unique, info-bulle au toucher, tableau de détail).
+- **Fitbod** : pastille de récupération par muscle (vert = prêt, orange = en récupération).
+- Thème sombre, cartes arrondies, listes groupées façon iOS, police système (SF Pro sur iPhone), icônes SVG maison (`components/Icon.tsx`).
+
 ## Interface instantanée
 
 Chaque tap met l'écran à jour tout de suite ; le serveur suit en arrière-plan.

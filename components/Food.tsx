@@ -2,7 +2,8 @@
 
 import { startTransition, useOptimistic, useRef } from 'react';
 import { addMeal, deleteMeal, saveSettings } from '@/app/actions';
-import Bar from './Bar';
+import Icon from './Icon';
+import Ring from './Ring';
 import { useInstantList } from './useInstantList';
 import { today } from '@/lib/config';
 
@@ -58,49 +59,73 @@ export default function Food({ meals, kcal, protein, frequent, energy }: Props) 
     });
   }
 
+  const eaten = list.reduce((t, m) => t + m.calories, 0);
+  const protein_g = list.reduce((t, m) => t + m.protein_g, 0);
+
   return (
     <>
       <div className="card">
-        <Bar label="Calories" value={list.reduce((t, m) => t + m.calories, 0)} min={target} max={target} unit=" kcal" />
-        <Bar label="Protéines" value={list.reduce((t, m) => t + m.protein_g, 0)} min={protein} max={protein} unit=" g" />
+        <div className="rings">
+          <Ring label="Calories" value={eaten} target={target} unit="kcal" />
+          <Ring label="Protéines" value={protein_g} target={protein} unit="g" />
+        </div>
       </div>
 
       {energy && suggested && (
         <div className="card">
-          <p className="muted">Dépense estimée sur 3 semaines (apports et évolution du poids)</p>
-          <p><b>{Math.round(energy.tdee)} kcal/j</b> · poids {energy.kgPerWeek >= 0 ? '+' : ''}{energy.kgPerWeek.toFixed(2)} kg/sem</p>
-          <p>Pour prendre ~0,25 kg/sem : <b>{suggested} kcal/j</b></p>
-          {suggested !== target && <button onClick={() => applyTarget(suggested)}>Appliquer cet objectif</button>}
+          <p className="muted small">Dépense estimée · 3 dernières semaines</p>
+          <p className="big num">{Math.round(energy.tdee).toLocaleString('fr-FR')} <span className="muted">kcal/j</span></p>
+          <p className="muted small">Poids {energy.kgPerWeek >= 0 ? '+' : ''}{energy.kgPerWeek.toFixed(2)} kg/sem · apports moyens {Math.round(energy.intake)} kcal</p>
+          <div className="divider" />
+          <div className="row">
+            <div>
+              <p className="muted small">Objectif conseillé (+0,25 kg/sem)</p>
+              <p><b>{suggested.toLocaleString('fr-FR')} kcal/j</b></p>
+            </div>
+            {suggested !== target ? (
+              <button className="primary apply" onClick={() => applyTarget(suggested)}>Appliquer</button>
+            ) : (
+              <span className="ok-text small">✓ Appliqué</span>
+            )}
+          </div>
         </div>
       )}
 
-      <h2>Ajouter un repas</h2>
       {frequent.length > 0 && (
-        <div className="chips">
-          {frequent.map((m) => (
-            <button key={`${m.name}-${m.calories}`} className="chip" onClick={() => relog(m)}>+ {m.name} · {m.calories}</button>
-          ))}
-        </div>
+        <>
+          <h2>Ajout rapide</h2>
+          <div className="chips scroll">
+            {frequent.map((m) => (
+              <button key={`${m.name}-${m.calories}`} className="chip" onClick={() => relog(m)}>+ {m.name} · {m.calories}</button>
+            ))}
+          </div>
+        </>
       )}
+
+      <h2>Ajouter un repas</h2>
       <form ref={form} action={add} className="card stack">
         <input name="name" placeholder="Nom (optionnel)" />
-        <div className="row">
+        <div className="grid2">
           <input name="calories" inputMode="numeric" placeholder="kcal" required />
-          <input name="protein" inputMode="decimal" placeholder="protéines (g)" />
+          <input name="protein" inputMode="decimal" placeholder="Protéines (g)" />
         </div>
         <input type="date" name="date" defaultValue={today()} />
         <button className="primary">Ajouter</button>
       </form>
 
       {list.length > 0 && (
-        <div className="card">
-          {list.map((m) => (
-            <div key={m.id} className="row set">
-              <span>{m.name || 'Repas'} · {m.calories} kcal · {m.protein_g} g</span>
-              <button className="icon" onClick={() => remove(m.id, deleteMeal, "Le repas n'a pas pu être supprimé.")} aria-label="Supprimer">×</button>
-            </div>
-          ))}
-        </div>
+        <>
+          <h2>Repas du jour</h2>
+          <div className="list">
+            {list.map((m) => (
+              <div key={m.id} className="item">
+                <span className="grow">{m.name || 'Repas'} <span className="muted small">· {m.protein_g} g prot.</span></span>
+                <b className="num">{m.calories}</b>
+                <button className="icon-btn" onClick={() => remove(m.id, deleteMeal, "Le repas n'a pas pu être supprimé.")} aria-label="Supprimer"><Icon name="x" size={18} /></button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </>
   );

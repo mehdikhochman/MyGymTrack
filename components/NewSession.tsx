@@ -23,25 +23,28 @@ export default function NewSession({ exercises, last, best, rest }: Props) {
   if (started) {
     return (
       <>
-        <h1>Séance · {formatDate(started.date)}</h1>
+        <h1>Séance</h1>
+        <p className="subtitle">{formatDate(started.date)}</p>
         <SessionLogger sessionId={started.id} initialMuscles={started.muscles} initialSets={[]} exercises={exercises} last={last} best={best} rest={rest} />
       </>
     );
   }
 
   return (
-    <form onSubmit={(ev) => { ev.preventDefault(); start(new FormData(ev.currentTarget)); }} className="stack">
+    <form onSubmit={(ev) => { ev.preventDefault(); start(new FormData(ev.currentTarget)); }}>
       <h1>Nouvelle séance</h1>
-      <p className="muted">Quels muscles aujourd&apos;hui ?</p>
-      <div className="chips">
+      <p className="subtitle">Quels muscles aujourd&apos;hui ?</p>
+      <div className="muscle-grid">
         {MUSCLES.map((m) => (
           <label key={m} className="chip">
             <input type="checkbox" name="muscle" value={m} /> {m}
           </label>
         ))}
       </div>
-      <label className="field">Date <input type="date" name="date" defaultValue={today()} /></label>
-      <button className="primary">Commencer</button>
+      <div className="list spaced">
+        <label className="field">Date <input type="date" name="date" defaultValue={today()} /></label>
+      </div>
+      <button className="primary hero-cta">Commencer</button>
     </form>
   );
 }

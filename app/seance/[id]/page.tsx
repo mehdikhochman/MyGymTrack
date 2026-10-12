@@ -20,7 +20,8 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
 
   return (
     <>
-      <h1>Séance · {formatDate(session.date)}</h1>
+      <h1>Séance</h1>
+      <p className="subtitle">{formatDate(session.date)}</p>
       <SessionLogger sessionId={id} initialMuscles={muscles} initialSets={sets} exercises={exercises} last={last} best={best} rest={Number(settings.rest)} />
     </>
   );

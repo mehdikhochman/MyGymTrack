@@ -1,6 +1,7 @@
 'use client';
 
 import { deleteNote } from '@/app/actions';
+import Icon from './Icon';
 import { useInstantList } from './useInstantList';
 
 export type Note = { id: number; title: string; summary: string; source_url: string; date: string };
@@ -14,10 +15,10 @@ export default function Notes({ notes }: { notes: Note[] }) {
     <div key={n.id} className="card">
       <div className="row">
         <h3>{n.title}</h3>
-        <button className="icon" onClick={() => confirm('Supprimer cette note ?') && remove(n.id, deleteNote, "La note n'a pas pu être supprimée.")} aria-label="Supprimer">×</button>
+        <button className="icon-btn" onClick={() => confirm('Supprimer cette note ?') && remove(n.id, deleteNote, "La note n'a pas pu être supprimée.")} aria-label="Supprimer"><Icon name="x" size={18} /></button>
       </div>
-      <p>{n.summary}</p>
-      <p className="muted">{n.date} · <a href={n.source_url} target="_blank" rel="noopener noreferrer">Source</a></p>
+      <p className="small">{n.summary}</p>
+      <p className="muted small">{n.date} · <a href={n.source_url} target="_blank" rel="noopener noreferrer">Lire la source</a></p>
     </div>
   ));
 }
