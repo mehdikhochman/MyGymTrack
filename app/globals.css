@@ -153,3 +153,14 @@ button:active, .button:active, .item:active, .chip:active { transform: scale(.97
 .skeleton { height: 120px; border-radius: 16px; background: var(--card); margin-bottom: 12px; animation: pulse 1s ease-in-out infinite alternate; }
 .skeleton.title { height: 34px; width: 50%; margin: 8px 0 16px; }
 @keyframes pulse { to { opacity: .4; } }
+.demo3d { height: 240px; border-radius: 12px; overflow: hidden; background: radial-gradient(circle at 50% 40%, #232834, #14161b); }
+
+/* Rest timer, records, demos */
+.rest { position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); display: flex; gap: 8px; align-items: center; padding: 8px 16px; background: var(--accent); color: #fff; z-index: 1; }
+.rest span { flex: 1; font-size: 18px; }
+.rest button { width: auto; min-height: 40px; background: rgba(255, 255, 255, .15); border: none; color: #fff; }
+.pr { color: #ffc940; font-weight: 600; margin-left: 6px; }
+.target { color: var(--ok); }
+.note { font-size: 13px; margin-left: 6px; color: var(--ok); }
+.note.tired { color: #ffa940; }
+.link { width: auto; min-height: 36px; align-self: flex-start; background: none; border: none; color: var(--accent); padding: 0; }

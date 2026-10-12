@@ -1,10 +1,10 @@
-import { sql, getSettings, weightTrend } from './db';
+import { sql, expenditure, getSettings, weightTrend } from './db';
 import { addDays, monday, today } from './config';
 
 // Everything the coach needs, computed at read time.
 export async function coachData() {
   const from = addDays(monday(), -21); // current week + 3 previous
-  const [settings, volume, lifts, food, weight, notes] = await Promise.all([
+  const [settings, volume, lifts, food, weight, energy, notes] = await Promise.all([
     getSettings(),
     sql`
       select date_trunc('week', se.date)::date::text as week, s.muscle, count(*)::int as sets
@@ -25,6 +25,7 @@ export async function coachData() {
       select date::text as date, sum(calories)::int as kcal, sum(protein_g)::real as protein_g
       from meals where date >= ${addDays(today(), -13)} group by date order by date`,
     weightTrend(8),
+    expenditure(),
     sql`select title, summary, source_url from research_notes order by created_at desc limit 10`,
   ]);
   return {
@@ -38,6 +39,7 @@ export async function coachData() {
     main_lifts_progression: lifts,
     daily_food_last_14_days: food,
     body_weight_weekly_avg_kg: weight,
+    estimated_expenditure_kcal_per_day: energy && Math.round(energy.tdee),
     research_notes: notes,
   };
 }

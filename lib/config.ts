@@ -14,6 +14,7 @@ export const MUSCLES = Object.keys(EXERCISES);
 export const DEFAULT_SETTINGS: Record<string, string> = {
   kcal: '2950',
   protein: '130',
+  rest: '120', // seconds between sets
   ...Object.fromEntries(MUSCLES.map((m) => [`sets:${m}`, m === 'Mollets' ? '12' : '12-16'])),
 };
 
@@ -21,6 +22,16 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
 export function parseRange(v: string): [number, number] {
   const [a, b] = v.split('-').map(Number);
   return [a, b || a];
+}
+
+// Estimated one-rep max (Epley), used to compare sets and spot records.
+export const e1rm = (s: { weight_kg: number; reps: number }) => s.weight_kg * (1 + s.reps / 30);
+
+// Double progression in the 6-12 rep range: 12 reps on last time's best set → add 2.5 kg, else add a rep.
+export function nextTarget(last: { weight_kg: number; reps: number }[]) {
+  const top = last.reduce((a, b) => (e1rm(b) > e1rm(a) ? b : a));
+  if (top.reps >= 12 && top.weight_kg > 0) return { weight_kg: top.weight_kg + 2.5, reps: 8 };
+  return { weight_kg: top.weight_kg, reps: top.reps + 1 };
 }
 
 const TZ = 'Europe/Paris';
@@ -35,6 +46,8 @@ export function addDays(date: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
+
+export const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 
 export function monday(date = today()): string {
   const dow = (new Date(date + 'T12:00:00Z').getUTCDay() + 6) % 7;

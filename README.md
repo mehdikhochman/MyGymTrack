@@ -13,6 +13,18 @@ Next.js 16 (App Router) · Postgres Neon · Claude Haiku 5.5 · déployé sur Ve
 - **Coach** : « Analyser ma semaine » envoie au modèle 4 semaines de séries par muscle, la progression des exercices principaux, les calories/protéines des 14 derniers jours, la tendance du poids et les 10 dernières notes. Chaque rapport est sauvegardé.
 - **Chercheur** : cron hebdomadaire (lundi ~5h UTC) qui cherche des études récentes sur des sources fiables et enregistre au plus 5 notes.
 
+## Benchmark : les 3 meilleures apps et ce qu'on en a repris
+
+Analyse des fonctionnalités publiques (sites, docs, comparatifs 2026), sans décompilation.
+
+| App | Domaine | Ce qu'elle fait de mieux | Repris dans MyGymTrack |
+|---|---|---|---|
+| **Hevy** | Journal de musculation | Ajout d'une série en 1 tap, colonne « précédent », minuteur de repos qui démarre seul, records en direct | Minuteur de repos automatique (±15 s, bip + vibration, durée dans Réglages), badge 🏆 Record quand une série bat le meilleur 1RM estimé |
+| **Fitbod** | Coach IA / progression | Recommandation de charge (surcharge progressive), carte de récupération musculaire, démos d'exercices | Objectif du jour (double progression 6-12 reps : 12 reps → +2,5 kg, sinon +1 rep) pré-rempli, état de récupération par muscle (48 h), démos 3D animées de chaque exercice |
+| **MacroFactor** | Nutrition | Dépense calculée à partir des apports et de la tendance du poids, objectif ajusté, saisie ultra-rapide des aliments récurrents | Dépense estimée sur 3 semaines (apports − variation de poids × 7 700 kcal/kg), objectif conseillé pour +0,25 kg/sem applicable en 1 tap, repas fréquents en 1 tap |
+
+Les démos 3D (`components/Exercise3D.tsx`, `lib/moves.ts`) utilisent three.js, chargé uniquement à l'ouverture d'une démo : un mannequin articulé boucle entre deux poses clés par type de mouvement (33 mouvements, chaque exercice y est associé ; un exercice perso prend le mouvement type de son muscle).
+
 ## Interface instantanée
 
 Chaque tap met l'écran à jour tout de suite ; le serveur suit en arrière-plan.

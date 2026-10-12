@@ -3,8 +3,11 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addSet, deleteSet } from '@/app/actions';
-import { MUSCLES, formatDate, plural } from '@/lib/config';
+import Exercise3D from './Exercise3D';
+import RestTimer, { unlockSound } from './RestTimer';
+import { MUSCLES, e1rm, formatDate, nextTarget, plural } from '@/lib/config';
 import { deletedSessions, unsentDeletes } from '@/lib/instant';
+import { moveFor } from '@/lib/moves';
 import type { Perf, Set } from '@/lib/db';
 
 type Props = {
@@ -13,19 +16,27 @@ type Props = {
   initialSets: Set[];
   exercises: Record<string, string[]>;
   last: Record<string, Perf[]>;
+  best: Record<string, number>; // best estimated 1RM before this session
+  rest: number; // seconds
 };
 type Open = { muscle: string; exercise: string };
 
+const format = (p: { weight_kg: number; reps: number }) => `${p.weight_kg}×${p.reps}`;
+
 // Every action updates the screen first and syncs with the server in the background.
-export default function SessionLogger({ sessionId, initialMuscles, initialSets, exercises, last: lastProp }: Props) {
+export default function SessionLogger({ sessionId, initialMuscles, initialSets, exercises, last: lastProp, best: bestProp, rest }: Props) {
   const router = useRouter();
-  const [last] = useState(lastProp); // frozen: later refreshes would include this session's own sets
+  // Frozen: later refreshes would include this session's own sets.
+  const [last] = useState(lastProp);
+  const [best] = useState(bestProp);
   const [muscles, setMuscles] = useState(initialMuscles);
   const [sets, setSets] = useState(initialSets);
   const [lists, setLists] = useState(exercises);
   const [open, setOpen] = useState<Open | null>(null);
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
+  const [demo, setDemo] = useState(false);
+  const [restEnd, setRestEnd] = useState<number | null>(null);
   const saving = useRef(new Map<number, Promise<Set>>()); // temporary id -> saved row
   const nextTempId = useRef(-1);
 
@@ -34,8 +45,9 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
   function openExercise(muscle: string, exercise: string) {
     if (open?.exercise === exercise) return setOpen(null);
     setOpen({ muscle, exercise });
-    // Prefill with the latest set of this session, else the first set from last time.
-    const p = setsOf(exercise).at(-1) ?? last[exercise]?.[0];
+    setDemo(false);
+    // Prefill with the latest set of this session, else today's progression target.
+    const p = setsOf(exercise).at(-1) ?? (last[exercise] && nextTarget(last[exercise]));
     setWeight(p ? String(p.weight_kg) : '');
     setReps(p ? String(p.reps) : '');
   }
@@ -46,6 +58,8 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
     if (!open || !(weight_kg >= 0) || !(r > 0)) return alert('Série invalide : vérifie le poids et les répétitions.');
     const temp: Set = { id: nextTempId.current--, session_id: 0, ...open, weight_kg, reps: r };
     setSets((s) => [...s, temp]);
+    unlockSound();
+    setRestEnd(Date.now() + rest * 1000);
     const saved = Promise.resolve(sessionId).then((session_id) => addSet({ session_id, ...open, weight_kg, reps: r }));
     saving.current.set(temp.id, saved);
     saved.then(
@@ -91,7 +105,7 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
       {done.length > 0 && (
         <div className="card">
           {done.map((e) => (
-            <p key={e} className="summary"><b>{e}</b> {setsOf(e).map((s) => `${s.weight_kg}×${s.reps}`).join(' · ')}</p>
+            <p key={e} className="summary"><b>{e}</b> {setsOf(e).map(format).join(' · ')}</p>
           ))}
         </div>
       )}
@@ -109,12 +123,20 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
                   <div className="panel">
                     <p className="muted">
                       {last[e]
-                        ? <>Dernière fois ({formatDate(last[e][0].date)}) : {last[e].map((p) => `${p.weight_kg}×${p.reps}`).join(' · ')}</>
+                        ? <>Dernière fois ({formatDate(last[e][0].date)}) : {last[e].map(format).join(' · ')}</>
                         : 'Première fois sur cet exercice'}
                     </p>
+                    {last[e] && (
+                      <p className="target">Objectif : {format(nextTarget(last[e]))}</p>
+                    )}
+                    <button className="link" onClick={() => setDemo(!demo)}>{demo ? 'Masquer le mouvement' : '▶ Voir le mouvement en 3D'}</button>
+                    {demo && <Exercise3D move={moveFor(e, m)} />}
                     {setsOf(e).map((s, i) => (
                       <div key={s.id} className="row set">
-                        <span>{i + 1}. {s.weight_kg} kg × {s.reps}</span>
+                        <span>
+                          {i + 1}. {s.weight_kg} kg × {s.reps}
+                          {best[e] !== undefined && e1rm(s) > best[e] && <span className="pr">🏆 Record</span>}
+                        </span>
                         <button className="icon" onClick={() => remove(s)} aria-label="Supprimer">×</button>
                       </div>
                     ))}
@@ -157,6 +179,7 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
       </div>
 
       <button className="danger danger-zone" onClick={removeSession}>Supprimer la séance</button>
+      <RestTimer end={restEnd} setEnd={setRestEnd} />
     </>
   );
 }

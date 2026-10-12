@@ -6,10 +6,10 @@ import SessionLogger from './SessionLogger';
 import { MUSCLES, formatDate, today } from '@/lib/config';
 import type { Perf } from '@/lib/db';
 
-type Props = { exercises: Record<string, string[]>; last: Record<string, Perf[]> };
+type Props = { exercises: Record<string, string[]>; last: Record<string, Perf[]>; best: Record<string, number>; rest: number };
 
 // Shows the logger as soon as "Commencer" is tapped; the session row is created in the background.
-export default function NewSession({ exercises, last }: Props) {
+export default function NewSession({ exercises, last, best, rest }: Props) {
   const [started, setStarted] = useState<{ id: Promise<number>; muscles: string[]; date: string } | null>(null);
 
   function start(fd: FormData) {
@@ -24,7 +24,7 @@ export default function NewSession({ exercises, last }: Props) {
     return (
       <>
         <h1>Séance · {formatDate(started.date)}</h1>
-        <SessionLogger sessionId={started.id} initialMuscles={started.muscles} initialSets={[]} exercises={exercises} last={last} />
+        <SessionLogger sessionId={started.id} initialMuscles={started.muscles} initialSets={[]} exercises={exercises} last={last} best={best} rest={rest} />
       </>
     );
   }
