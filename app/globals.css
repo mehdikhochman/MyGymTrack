@@ -149,6 +149,7 @@ main > form { margin-bottom: 12px; }
 /* Instant feedback */
 button, .button, .item, .chip, .tabs a { touch-action: manipulation; transition: transform .08s, opacity .08s; }
 button:active, .button:active, .item:active, .chip:active { transform: scale(.97); opacity: .85; }
+.tabs a:active { color: var(--accent); }
 .skeleton { height: 120px; border-radius: 16px; background: var(--card); margin-bottom: 12px; animation: pulse 1s ease-in-out infinite alternate; }
 .skeleton.title { height: 34px; width: 50%; margin: 8px 0 16px; }
 @keyframes pulse { to { opacity: .4; } }

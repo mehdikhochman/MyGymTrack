@@ -20,6 +20,8 @@ Chaque tap met l'écran à jour tout de suite ; le serveur suit en arrière-plan
 - Séries, repas, pesées, notes, objectifs : ajout et suppression affichés avant la réponse du serveur (`useInstantList`, `useOptimistic`). En cas d'échec, l'élément revient et un message s'affiche. Supprimer un élément encore en cours d'enregistrement attend son vrai id.
 - « Commencer » ouvre la séance sans attendre sa création en base ; la dernière performance de chaque exercice est préchargée avec la page.
 - Suppression de séance et déconnexion : la page suivante s'affiche d'abord, la requête part ensuite (une server action lancée pendant une navigation la bloquerait jusqu'à sa fin).
+- Fonctions Vercel en Europe (`fra1`, voir `vercel.json`), à côté de la base Neon (Frankfurt) : sinon chaque requête traverse l'Atlantique (région par défaut : Washington).
+- iPhone : retour visuel au toucher activé ; au retour dans l'app après une pause, les données sont rafraîchies et le serveur réveillé immédiatement.
 - Seule exception : l'analyse du coach dépend de l'IA (~20 s) ; un indicateur s'affiche immédiatement.
 
 ## Structure
