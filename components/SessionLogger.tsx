@@ -1,71 +1,102 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { addSet, deleteSet } from '@/app/actions';
-import Exercise3D from './Exercise3D';
+import ExerciseDemo, { Thumb } from './ExerciseDemo';
+import ExercisePicker, { type Picked } from './ExercisePicker';
 import Icon from './Icon';
 import RestTimer, { unlockSound } from './RestTimer';
-import { MUSCLES, e1rm, formatDate, nextTarget, plural } from '@/lib/config';
+import { e1rm, fmt, formatDate, nextTarget, plural, weightStep } from '@/lib/config';
+import { exerciseByName } from '@/lib/exercises';
 import { deletedSessions, unsentDeletes } from '@/lib/instant';
-import { moveFor } from '@/lib/moves';
 import type { Perf, Set } from '@/lib/db';
+
+// One exercise of the session: planned by the coach, or added during the session.
+export type Card = { name: string; group: string; sets: number; reps?: [number, number]; rest?: number; note?: string };
 
 type Props = {
   sessionId: number | Promise<number>; // a promise while a new session is still being created
-  initialMuscles: string[];
+  title: string;
+  date: string;
+  startedAt: number;
+  planned: Card[];
   initialSets: Set[];
-  exercises: Record<string, string[]>;
   last: Record<string, Perf[]>;
   best: Record<string, number>; // best estimated 1RM before this session
-  rest: number; // seconds
+  rest: number; // default rest, seconds
+  custom: { name: string; group: string }[];
 };
-type Open = { muscle: string; exercise: string };
 
-const format = (p: { weight_kg: number; reps: number }) => `${p.weight_kg} kg × ${p.reps}`;
 const short = (p: { weight_kg: number; reps: number }) => `${p.weight_kg}×${p.reps}`;
 
 // Every action updates the screen first and syncs with the server in the background.
-export default function SessionLogger({ sessionId, initialMuscles, initialSets, exercises, last: lastProp, best: bestProp, rest }: Props) {
+export default function SessionLogger({ sessionId, title, date, startedAt, planned, initialSets, last: lastProp, best: bestProp, rest, custom }: Props) {
   const router = useRouter();
   // Frozen: later refreshes would include this session's own sets.
   const [last] = useState(lastProp);
   const [best] = useState(bestProp);
-  const [muscles, setMuscles] = useState(initialMuscles);
   const [sets, setSets] = useState(initialSets);
-  const [lists, setLists] = useState(exercises);
-  const [open, setOpen] = useState<Open | null>(null);
-  const [weight, setWeight] = useState('');
-  const [reps, setReps] = useState('');
-  const [demo, setDemo] = useState(false);
+  const [cards, setCards] = useState<Card[]>(() => [
+    ...planned,
+    ...[...new Set(initialSets.map((s) => s.exercise))].filter((n) => !planned.some((c) => c.name === n))
+      .map((name) => ({ name, group: initialSets.find((s) => s.exercise === name)!.muscle, sets: 0 })),
+  ]);
+  const setsOf = (name: string) => sets.filter((s) => s.exercise === name);
+  const [open, setOpen] = useState<string | null>(() => cards.find((c) => setsOf(c.name).length < c.sets)?.name ?? cards[0]?.name ?? null);
+  const [extra, setExtra] = useState<Record<string, number>>({}); // rows added beyond the plan
+  const [values, setValues] = useState<Record<string, { w: string; r: string }>>({});
+  const [picker, setPicker] = useState<null | { swap?: string; group?: string }>(null);
   const [restEnd, setRestEnd] = useState<number | null>(null);
+  const [restTotal, setRestTotal] = useState(rest);
+  const [now, setNow] = useState(() => Date.now());
   const saving = useRef(new Map<number, Promise<Set>>()); // temporary id -> saved row
   const nextTempId = useRef(-1);
 
-  const setsOf = (exercise: string) => sets.filter((s) => s.exercise === exercise);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(t);
+  }, []);
 
-  function openExercise(muscle: string, exercise: string) {
-    if (open?.exercise === exercise) return setOpen(null);
-    setOpen({ muscle, exercise });
-    setDemo(false);
-    // Prefill with the latest set of this session, else today's progression target.
-    const p = setsOf(exercise).at(-1) ?? (last[exercise] && nextTarget(last[exercise]));
-    setWeight(p ? String(p.weight_kg) : '');
-    setReps(p ? String(p.reps) : '');
+  // Today's target for an exercise: double progression from last time, within the coach's rep range.
+  function target(c: Card) {
+    const prev = last[c.name];
+    if (prev) return nextTarget(prev, c.reps ?? [6, 12], weightStep(exerciseByName(c.name)?.equipment));
+    return c.reps ? { weight_kg: NaN, reps: c.reps[0] } : null;
   }
+  function inputs(c: Card) {
+    if (values[c.name]) return values[c.name];
+    const done = setsOf(c.name).at(-1);
+    const t = done ?? target(c);
+    return { w: t && Number.isFinite(t.weight_kg) ? String(t.weight_kg) : '', r: t ? String(t.reps) : '' };
+  }
+  const setInput = (c: Card, k: 'w' | 'r', v: string) => setValues((x) => ({ ...x, [c.name]: { ...inputs(c), [k]: v } }));
 
-  function add() {
-    const weight_kg = Number(weight.replace(',', '.'));
-    const r = Math.round(Number(reps));
-    if (!open || !(weight_kg >= 0) || !(r > 0)) return alert('Série invalide : vérifie le poids et les répétitions.');
-    const temp: Set = { id: nextTempId.current--, session_id: 0, ...open, weight_kg, reps: r };
+  function add(c: Card) {
+    const { w, r } = inputs(c);
+    const weight_kg = Number(w.replace(',', '.') || '0');
+    const reps = Math.round(Number(r));
+    if (!(weight_kg >= 0) || !(reps > 0)) return alert('Série invalide : vérifie le poids et les répétitions.');
+    const row = { session_id: 0, muscle: c.group, exercise: c.name, weight_kg, reps };
+    const temp: Set = { id: nextTempId.current--, ...row };
+    const done = setsOf(c.name).length;
+    if (done >= c.sets) setExtra((x) => ({ ...x, [c.name]: Math.max(0, (x[c.name] ?? 0) - 1) }));
     setSets((s) => [...s, temp]);
+    setValues((x) => ({ ...x, [c.name]: { w, r } }));
     unlockSound();
-    setRestEnd(Date.now() + rest * 1000);
-    const saved = Promise.resolve(sessionId).then((session_id) => addSet({ session_id, ...open, weight_kg, reps: r }));
+    const seconds = c.rest ?? rest;
+    setRestTotal(seconds);
+    setRestEnd(Date.now() + seconds * 1000);
+    // Exercise complete: open the next unfinished one.
+    if (done + 1 >= c.sets + (extra[c.name] ?? 0) && c.sets > 0) {
+      const next = cards.find((x) => x.name !== c.name && setsOf(x.name).length < x.sets);
+      if (next) setOpen(next.name);
+    }
+    const saved = Promise.resolve(sessionId).then((session_id) => addSet({ ...row, session_id }));
     saving.current.set(temp.id, saved);
     saved.then(
-      (row) => setSets((s) => s.map((x) => (x.id === temp.id ? row : x))),
+      (real) => setSets((s) => s.map((x) => (x.id === temp.id ? real : x))),
       () => {
         setSets((s) => s.filter((x) => x.id !== temp.id));
         alert("La série n'a pas pu être enregistrée.");
@@ -73,7 +104,9 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
     );
   }
 
-  async function remove(set: Set) {
+  // Unchecking a set deletes it and puts its values back in the input row (one tap to redo it).
+  async function uncheck(set: Set) {
+    setValues((x) => ({ ...x, [set.exercise]: { w: String(set.weight_kg), r: String(set.reps) } }));
     setSets((s) => s.filter((x) => x.id !== set.id));
     try {
       const id = set.id < 0 ? (await saving.current.get(set.id))!.id : set.id;
@@ -84,116 +117,126 @@ export default function SessionLogger({ sessionId, initialMuscles, initialSets, 
     }
   }
 
-  async function removeSession() {
-    if (!confirm('Supprimer cette séance et toutes ses séries ?')) return;
-    const id = await sessionId;
-    deletedSessions.add(id);
-    unsentDeletes.add(id);
-    router.push('/historique');
+  function pick(p: Picked) {
+    const swap = picker?.swap;
+    setPicker(null);
+    if (cards.some((c) => c.name === p.name)) return setOpen(p.name);
+    setCards((cs) => {
+      if (!swap) return [...cs, { name: p.name, group: p.group, sets: 3 }];
+      return cs.map((c) => (c.name === swap ? { ...c, name: p.name, group: p.group, note: undefined } : c));
+    });
+    setOpen(p.name);
   }
 
-  function addCustom(muscle: string, name: string) {
-    const exercise = name.trim();
-    if (!exercise) return;
-    if (!lists[muscle].includes(exercise)) setLists((l) => ({ ...l, [muscle]: [...l[muscle], exercise] }));
-    openExercise(muscle, exercise);
+  async function finish(remove = false) {
+    if (remove && !confirm('Supprimer cette séance et toutes ses séries ?')) return;
+    if (remove || sets.length === 0) {
+      const id = await sessionId;
+      deletedSessions.add(id);
+      unsentDeletes.add(id); // sent once the next page is shown (see Nav)
+    }
+    router.push('/');
   }
 
-  // Unchecking a set deletes it and puts its values back in the input row (one tap to redo it).
-  function uncheck(set: Set) {
-    setWeight(String(set.weight_kg));
-    setReps(String(set.reps));
-    remove(set);
-  }
-
-  const done = [...new Set(sets.map((s) => s.exercise))];
   const volume = sets.reduce((t, s) => t + s.weight_kg * s.reps, 0);
+  const minutes = Math.max(0, Math.floor((now - startedAt) / 60_000));
 
   return (
     <>
-      <div className="session-stats">
-        <div><span className="muted small">Séries</span><b>{sets.length}</b></div>
-        <div><span className="muted small">Volume</span><b>{Math.round(volume).toLocaleString('fr-FR')} kg</b></div>
-        <div><span className="muted small">Exercices</span><b>{done.length}</b></div>
-      </div>
-
-      {done.length > 0 && (
-        <div className="card">
-          {done.map((e) => (
-            <p key={e} className="small"><b>{e}</b> <span className="muted">{setsOf(e).map(short).join(' · ')}</span></p>
-          ))}
+      <header className="s-head">
+        <Link href="/" className="icon-btn" aria-label="Retour"><Icon name="back" /></Link>
+        <div className="title">
+          <b className="ellipsis">{title}</b>
+          <span className="muted small">{formatDate(date)} · {minutes} min · {plural(sets.length, 'série')} · {fmt(volume)} kg</span>
         </div>
-      )}
+        <button className="primary finish" onClick={() => finish()}>Terminer</button>
+      </header>
 
-      {muscles.map((m) => (
-        <section key={m}>
-          <h2>{m} · {plural(sets.filter((s) => s.muscle === m).length, 'série')}</h2>
-          <div className="list">
-            {lists[m].map((e) => (
-              <div key={e}>
-                <button className={open?.exercise === e ? 'item on' : 'item'} onClick={() => openExercise(m, e)}>
-                  <span className="grow">{e}</span>
-                  {setsOf(e).length > 0 && <span className="badge">{setsOf(e).length}</span>}
-                  <span className="chev"><Icon name="chevron" size={18} /></span>
-                </button>
-                {open?.exercise === e && (
-                  <div className="exercise-body">
-                    <div className="row">
-                      <p className="muted small">
-                        {last[e] ? <>Dernière fois · {formatDate(last[e][0].date)}</> : 'Première fois sur cet exercice'}
-                      </p>
-                      <button className="ghost" onClick={() => setDemo(!demo)}><Icon name="cube" size={18} /> {demo ? 'Masquer' : '3D'}</button>
-                    </div>
-                    {last[e] && <span className="target">🎯 Objectif {format(nextTarget(last[e]))}</span>}
-                    {demo && <Exercise3D move={moveFor(e, m)} />}
-                    <table className="sets">
-                      <thead>
-                        <tr><th>Série</th><th>Précédent</th><th>kg</th><th>Reps</th><th>✓</th></tr>
-                      </thead>
-                      <tbody>
-                        {setsOf(e).map((s, i) => (
-                          <tr key={s.id} className="done">
-                            <td>{best[e] !== undefined && e1rm(s) > best[e] ? <span className="pr" title="Record">🏆</span> : i + 1}</td>
-                            <td className="prev">{last[e]?.[i] ? short(last[e][i]) : '—'}</td>
-                            <td>{s.weight_kg}</td>
-                            <td>{s.reps}</td>
-                            <td><button className="check on" onClick={() => uncheck(s)} aria-label="Annuler la série"><Icon name="check" /></button></td>
-                          </tr>
-                        ))}
-                        <tr>
-                          <td>{setsOf(e).length + 1}</td>
-                          <td className="prev">{last[e]?.[setsOf(e).length] ? short(last[e][setsOf(e).length]) : '—'}</td>
-                          <td><input inputMode="decimal" value={weight} onChange={(ev) => setWeight(ev.target.value)} aria-label="Poids (kg)" /></td>
-                          <td><input inputMode="numeric" value={reps} onChange={(ev) => setReps(ev.target.value)} aria-label="Répétitions" /></td>
-                          <td><button className="check" disabled={!weight || !reps} onClick={add} aria-label="Valider la série"><Icon name="check" /></button></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+      {cards.map((c, idx) => {
+        const lib = exerciseByName(c.name);
+        const done = setsOf(c.name);
+        const pending = Math.max(0, c.sets - done.length) + (extra[c.name] ?? 0);
+        const isOpen = open === c.name;
+        const t = target(c);
+        const prev = last[c.name];
+        const v = inputs(c);
+        return (
+          <section key={c.name} className={done.length >= c.sets && c.sets > 0 ? 'ex done' : 'ex'}>
+            <button className="ex-head" onClick={() => setOpen(isOpen ? null : c.name)} aria-expanded={isOpen}>
+              <Thumb id={lib?.id} images={lib?.images} />
+              <span className="grow">
+                <span className="name">{c.name}</span>
+                <span className="muted small" style={{ display: 'block' }}>
+                  {c.sets > 0 ? `${done.length}/${c.sets} séries` : plural(done.length, 'série')}
+                  {c.reps && ` · ${c.reps[0]}-${c.reps[1]} reps`} · {idx + 1}/{cards.length}
+                </span>
+              </span>
+              <span className={isOpen ? 'chev open' : 'chev'}><Icon name="chevron" size={18} /></span>
+            </button>
+            {isOpen && (
+              <div className="ex-body">
+                {lib && lib.images > 0 && <ExerciseDemo id={lib.id} name={c.name} />}
+                {prev && t && Number.isFinite(t.weight_kg) && (
+                  <span className="target"><Icon name="trophy" size={16} /> Objectif {t.weight_kg} kg × {t.reps}</span>
                 )}
+                {c.note && <p className="note">{c.note}</p>}
+                <p className="muted small">
+                  {prev ? <>Dernière fois · {formatDate(prev[0].date)} · {prev.map(short).join('  ')}</> : 'Première fois : choisis une charge que tu soulèves proprement.'}
+                </p>
+                <table className="sets">
+                  <thead><tr><th>Série</th><th>Précédent</th><th>kg</th><th>Reps</th><th><span className="sr">Fait</span></th></tr></thead>
+                  <tbody>
+                    {done.map((s, i) => {
+                      const record = best[c.name] !== undefined && e1rm(s) > best[c.name];
+                      return (
+                        <tr key={s.id} className={record ? 'done record' : 'done'}>
+                          <td>{record ? <span title="Record">🏆</span> : i + 1}</td>
+                          <td className="prev">{prev?.[i] ? short(prev[i]) : '—'}</td>
+                          <td className="v">{s.weight_kg}</td>
+                          <td className="v">{s.reps}</td>
+                          <td><button className="check on" onClick={() => uncheck(s)} aria-label={`Annuler la série ${i + 1}`}><Icon name="check" /></button></td>
+                        </tr>
+                      );
+                    })}
+                    {Array.from({ length: Math.max(1, pending) }, (_, k) => {
+                      const i = done.length + k;
+                      return k === 0 ? (
+                        <tr key="current">
+                          <td>{i + 1}</td>
+                          <td className="prev">{prev?.[i] ? short(prev[i]) : '—'}</td>
+                          <td><input inputMode="decimal" value={v.w} placeholder="kg" onChange={(e) => setInput(c, 'w', e.target.value)} aria-label="Poids (kg)" /></td>
+                          <td><input inputMode="numeric" value={v.r} placeholder="reps" onChange={(e) => setInput(c, 'r', e.target.value)} aria-label="Répétitions" /></td>
+                          <td><button className="check go" disabled={!v.r} onClick={() => add(c)} aria-label="Valider la série"><Icon name="check" /></button></td>
+                        </tr>
+                      ) : (
+                        <tr key={k} className="muted">
+                          <td>{i + 1}</td>
+                          <td className="prev">{prev?.[i] ? short(prev[i]) : '—'}</td>
+                          <td className="prev">{v.w || '—'}</td>
+                          <td className="prev">{v.r || '—'}</td>
+                          <td />
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="row">
+                  <button className="ghost" onClick={() => setExtra((x) => ({ ...x, [c.name]: (x[c.name] ?? 0) + 1 }))}><Icon name="plus" size={18} /> Série</button>
+                  {done.length === 0 && (
+                    <button className="ghost" onClick={() => setPicker({ swap: c.name, group: c.group })}><Icon name="swap" size={18} /> Remplacer</button>
+                  )}
+                </div>
               </div>
-            ))}
-            <form className="item" onSubmit={(ev) => {
-              ev.preventDefault();
-              addCustom(m, (ev.currentTarget.elements.namedItem('exercise') as HTMLInputElement).value);
-              ev.currentTarget.reset();
-            }}>
-              <input name="exercise" placeholder="Autre exercice…" />
-              <button className="ghost">Ajouter</button>
-            </form>
-          </div>
-        </section>
-      ))}
+            )}
+          </section>
+        );
+      })}
 
-      <h2>Ajouter un muscle</h2>
-      <div className="chips">
-        {MUSCLES.filter((m) => !muscles.includes(m)).map((m) => (
-          <button key={m} className="chip" onClick={() => setMuscles((ms) => MUSCLES.filter((x) => ms.includes(x) || x === m))}>+ {m}</button>
-        ))}
-      </div>
+      <button className="big" onClick={() => setPicker({})}><Icon name="plus" /> Ajouter un exercice</button>
+      <button className="danger end" onClick={() => finish(true)}>Supprimer la séance</button>
 
-      <button className="danger end" onClick={removeSession}>Supprimer la séance</button>
-      <RestTimer end={restEnd} setEnd={setRestEnd} />
+      {picker && <ExercisePicker custom={custom} group={picker.group} onPick={pick} onClose={() => setPicker(null)} />}
+      <RestTimer end={restEnd} total={restTotal} setEnd={setRestEnd} />
     </>
   );
 }

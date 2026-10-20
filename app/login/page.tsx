@@ -1,21 +1,23 @@
-'use client';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import AuthForm from '@/components/AuthForm';
+import Brand from '@/components/Brand';
+import { login } from '../auth-actions';
+import { currentUser } from '@/lib/auth';
 
-import { useActionState, useEffect } from 'react';
-import { login, logout } from '../actions';
-import Icon from '@/components/Icon';
-import Submit from '@/components/Submit';
-
-export default function Login() {
-  const [error, action] = useActionState(login, undefined);
-  useEffect(() => { logout(); }, []); // opening this page signs out, so "Se déconnecter" is a plain link
+export default async function Login() {
+  if (await currentUser()) redirect('/');
   return (
-    <form action={action} className="stack login">
-      <div className="logo"><Icon name="dumbbell" size={34} /></div>
-      <h1>MyGymTrack</h1>
-      <p className="subtitle">Muscu · nutrition · coach IA</p>
-      <input type="password" name="password" placeholder="Mot de passe" autoComplete="current-password" required autoFocus />
-      {error && <p className="error">{error}</p>}
-      <Submit className="primary hero-cta" pendingText="…">Entrer</Submit>
-    </form>
+    <div className="auth">
+      <Brand />
+      <h1>Connexion</h1>
+      <p className="lede">Content de te revoir. Ta série t’attend.</p>
+      <AuthForm action={login} submit="Se connecter" pending="Connexion…" fields={[
+        { name: 'email', label: 'E-mail', type: 'email', autoComplete: 'email' },
+        { name: 'password', label: 'Mot de passe', type: 'password', autoComplete: 'current-password' },
+      ]} />
+      <p className="center end"><Link href="/mot-de-passe">Mot de passe oublié ?</Link></p>
+      <p className="center muted">Pas encore de compte ? <Link href="/inscription">Créer un compte</Link></p>
+    </div>
   );
 }

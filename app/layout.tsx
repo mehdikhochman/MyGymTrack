@@ -1,18 +1,25 @@
 import type { Metadata, Viewport } from 'next';
+import { Barlow, Big_Shoulders } from 'next/font/google';
 import Nav from '@/components/Nav';
 import './globals.css';
 
-export const dynamic = 'force-dynamic';
+// Fonts are downloaded at build time and served by the app itself.
+const display = Big_Shoulders({ subsets: ['latin', 'latin-ext'], axes: ['opsz'], variable: '--font-display', adjustFontFallback: false });
+const text = Barlow({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600', '700'], variable: '--font-text' });
 
 export const metadata: Metadata = {
   title: 'MyGymTrack',
-  appleWebApp: { capable: true, title: 'MyGymTrack', statusBarStyle: 'black-translucent' },
+  description: 'Entraînement, nutrition et coach IA. Garde ta série.',
+  appleWebApp: { capable: true, title: 'MyGymTrack', statusBarStyle: 'default' },
 };
-export const viewport: Viewport = { themeColor: '#111318', width: 'device-width', initialScale: 1, viewportFit: 'cover' };
+export const viewport: Viewport = {
+  themeColor: [{ media: '(prefers-color-scheme: light)', color: '#EEF0F3' }, { media: '(prefers-color-scheme: dark)', color: '#0F1115' }],
+  width: 'device-width', initialScale: 1, viewportFit: 'cover',
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={`${display.variable} ${text.variable}`}>
       <body>
         <main>{children}</main>
         <Nav />

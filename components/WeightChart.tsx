@@ -17,7 +17,7 @@ export default function WeightChart({ points }: { points: Point[] }) {
   const hi = Math.max(...values) + 0.3;
   const x = (i: number) => PAD + (i * (W - 2 * PAD)) / (points.length - 1);
   const y = (v: number) => TOP + (H - TOP - 14) * (1 - (v - lo) / (hi - lo));
-  const label = (i: number) => `${points[i].avg.toFixed(1)} kg`;
+  const label = (i: number) => `${points[i].avg.toFixed(1).replace(".", ",")} kg`;
 
   function pick(ev: React.PointerEvent<SVGSVGElement>) {
     const box = ev.currentTarget.getBoundingClientRect();
@@ -30,14 +30,14 @@ export default function WeightChart({ points }: { points: Point[] }) {
     <div className="chart">
       <svg viewBox={`0 0 ${W} ${H}`} onPointerMove={pick} onPointerDown={pick} onPointerLeave={() => setActive(null)} role="img" aria-label="Poids moyen par semaine">
         {active !== null && <line x1={x(active)} x2={x(active)} y1={TOP - 6} y2={H - 8} stroke="var(--line)" strokeWidth="1" />}
-        <polyline points={points.map((p, i) => `${x(i)},${y(p.avg)}`).join(' ')} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" />
+        <polyline points={points.map((p, i) => `${x(i)},${y(p.avg)}`).join(' ')} fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinejoin="round" />
         {points.map((p, i) => (
-          <circle key={p.week} cx={x(i)} cy={y(p.avg)} r={active === i ? 5 : 4} fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
+          <circle key={p.week} cx={x(i)} cy={y(p.avg)} r={active === i ? 5 : 4} fill="var(--blue)" stroke="var(--surface)" strokeWidth="2" />
         ))}
         {active === null && (
           <>
             <text x={x(0)} y={y(points[0].avg) - 10} fill="var(--muted)" fontSize="12" textAnchor="start">{label(0)}</text>
-            <text x={x(last)} y={y(points[last].avg) - 10} fill="var(--text)" fontSize="12" fontWeight="700" textAnchor="end">{label(last)}</text>
+            <text x={x(last)} y={y(points[last].avg) - 10} fill="var(--ink)" fontSize="12" fontWeight="700" textAnchor="end">{label(last)}</text>
           </>
         )}
       </svg>

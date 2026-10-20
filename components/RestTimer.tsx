@@ -22,7 +22,7 @@ function beep() {
 }
 
 // Rest countdown shown after each set; beeps and vibrates when it is time for the next one.
-export default function RestTimer({ end, setEnd }: { end: number | null; setEnd: (end: number | null) => void }) {
+export default function RestTimer({ end, total, setEnd }: { end: number | null; total: number; setEnd: (end: number | null) => void }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!end) return;
@@ -42,11 +42,12 @@ export default function RestTimer({ end, setEnd }: { end: number | null; setEnd:
 
   if (!end || finished) return null;
   return (
-    <div className="rest">
-      <span>Repos <b>{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b></span>
+    <div className="rest" role="timer" aria-live="off">
+      <span className="time"><small>Repos</small>{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>
       <button onClick={() => setEnd(end - 15_000)}>−15 s</button>
       <button onClick={() => setEnd(end + 15_000)}>+15 s</button>
-      <button onClick={() => setEnd(null)} aria-label="Arrêter">✕</button>
+      <button onClick={() => setEnd(null)}>Passer</button>
+      <span className="progress" style={{ width: `${Math.min(100, (left / total) * 100)}%` }} />
     </div>
   );
 }

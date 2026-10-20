@@ -1,38 +1,42 @@
-export const EXERCISES: Record<string, string[]> = {
-  Pecs: ['Développé couché', 'Développé incliné haltères', 'Dips', 'Écarté poulie', 'Pec deck', 'Pompes lestées'],
-  Dos: ['Tractions', 'Rowing barre', 'Tirage vertical', 'Rowing haltère', 'Tirage horizontal', 'Soulevé de terre'],
-  Épaules: ['Développé militaire', 'Développé haltères assis', 'Élévations latérales', 'Oiseau', 'Face pull'],
-  Biceps: ['Curl barre', 'Curl haltères', 'Curl marteau', 'Curl pupitre', 'Curl poulie'],
-  Triceps: ['Barre au front', 'Extension poulie', 'Extension nuque haltère', 'Développé couché prise serrée', 'Kickback'],
-  Quadriceps: ['Squat', 'Presse à cuisses', 'Hack squat', 'Squat bulgare', 'Fentes', 'Leg extension'],
-  Ischios: ['Soulevé de terre roumain', 'Leg curl assis', 'Leg curl allongé', 'Hip thrust', 'Good morning'],
-  Mollets: ['Mollets debout', 'Mollets assis', 'Mollets à la presse', 'Mollets unilatéral haltère', 'Donkey calf raise'],
-  Abdos: ['Crunch', 'Relevé de jambes', 'Crunch poulie', 'Gainage', 'Roue abdominale'],
-};
-export const MUSCLES = Object.keys(EXERCISES);
+// Muscle groups used for weekly volume (each library exercise belongs to one).
+export const MUSCLES = ['Pecs', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Avant-bras', 'Abdos', 'Quadriceps', 'Ischios', 'Fessiers', 'Mollets'];
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
-  kcal: '2950',
-  protein: '130',
+  kcal: '2500',
+  protein: '140',
+  carbs: '300',
+  fat: '70',
   rest: '120', // seconds between sets
-  ...Object.fromEntries(MUSCLES.map((m) => [`sets:${m}`, m === 'Mollets' ? '12' : '12-16'])),
 };
 
-// "12-16" -> [12, 16], "12" -> [12, 12]
-export function parseRange(v: string): [number, number] {
-  const [a, b] = v.split('-').map(Number);
-  return [a, b || a];
-}
+export const GOALS: Record<string, { label: string; detail: string }> = {
+  muscle: { label: 'Prendre du muscle', detail: 'Surplus léger, volume progressif' },
+  fat: { label: 'Perdre du gras', detail: 'Déficit modéré, garder la force' },
+  strength: { label: 'Gagner en force', detail: 'Charges lourdes, peu de répétitions' },
+  fit: { label: 'Rester en forme', detail: 'Équilibre, régularité' },
+};
+export const LEVELS: Record<string, string> = { beginner: 'Débutant', intermediate: 'Intermédiaire', advanced: 'Confirmé' };
+export const SETUPS: Record<string, { label: string; detail: string }> = {
+  gym: { label: 'Salle de sport', detail: 'Barres, haltères, poulies, machines' },
+  dumbbells: { label: 'Haltères à la maison', detail: 'Haltères, banc, poids du corps' },
+  bodyweight: { label: 'Sans matériel', detail: 'Poids du corps uniquement' },
+};
 
 // Estimated one-rep max (Epley), used to compare sets and spot records.
 export const e1rm = (s: { weight_kg: number; reps: number }) => s.weight_kg * (1 + s.reps / 30);
 
-// Double progression in the 6-12 rep range: 12 reps on last time's best set → add 2.5 kg, else add a rep.
-export function nextTarget(last: { weight_kg: number; reps: number }[]) {
+// Double progression: reach the top of the rep range on the best set → add weight and restart at the bottom,
+// otherwise keep the weight and add a rep.
+export function nextTarget(last: { weight_kg: number; reps: number }[], [lo, hi]: [number, number] = [6, 12], step = 2.5) {
   const top = last.reduce((a, b) => (e1rm(b) > e1rm(a) ? b : a));
-  if (top.reps >= 12 && top.weight_kg > 0) return { weight_kg: top.weight_kg + 2.5, reps: 8 };
-  return { weight_kg: top.weight_kg, reps: top.reps + 1 };
+  if (top.weight_kg === 0) return { weight_kg: 0, reps: top.reps + 1 }; // bodyweight: more reps
+  if (top.reps >= hi) return { weight_kg: top.weight_kg + step, reps: lo };
+  return { weight_kg: top.weight_kg, reps: Math.min(hi, Math.max(lo, top.reps + 1)) };
 }
+
+// Smallest sensible jump for the equipment.
+export const weightStep = (equipment?: string) =>
+  equipment === 'Haltères' || equipment === 'Kettlebell' ? 2 : equipment === 'Poulie' || equipment === 'Machine' ? 5 : 2.5;
 
 const TZ = 'Europe/Paris';
 
@@ -62,4 +66,5 @@ export function formatLongDate(date: string): string {
   return new Date(date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 
-export const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
+export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n > 1 ? many : word}`;
+export const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR');

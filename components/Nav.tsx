@@ -4,14 +4,18 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Icon, { type IconName } from './Icon';
+import { deleteSession } from '@/app/actions';
+import { unsentDeletes } from '@/lib/instant';
 
 const LINKS: [string, string, IconName][] = [
-  ['/', 'Accueil', 'home'],
+  ['/', 'Aujourd’hui', 'today'],
   ['/nutrition', 'Nutrition', 'food'],
-  ['/historique', 'Historique', 'history'],
+  ['/seance', 'Séance', 'dumbbell'],
+  ['/progres', 'Progrès', 'chart'],
   ['/coach', 'Coach', 'coach'],
-  ['/reglages', 'Réglages', 'settings'],
 ];
+// Full-screen flows without the tab bar.
+const HIDDEN = /^\/(login|inscription|mot-de-passe|bienvenue|seance\/\d)/;
 
 // Tabs are fully prefetched (and re-prefetched after every change), so switching is instant.
 export default function Nav() {
@@ -35,15 +39,31 @@ export default function Nav() {
     };
   }, [router]);
 
-  if (path === '/login') return null;
+  // Sessions deleted on the previous screen: sent now that the navigation is done (see lib/instant).
+  useEffect(() => {
+    for (const id of unsentDeletes) {
+      unsentDeletes.delete(id);
+      deleteSession(id).catch(() => alert("La séance n'a pas pu être supprimée."));
+    }
+  }, [path]);
+
+  if (HIDDEN.test(path)) return null;
   return (
-    <nav className="tabs">
-      {LINKS.map(([href, label, icon]) => (
-        <Link key={href} href={href} prefetch className={(href === '/' ? path === '/' : path.startsWith(href)) ? 'on' : ''}>
-          <Icon name={icon} />
-          {label}
-        </Link>
-      ))}
+    <nav className="tabs" aria-label="Navigation principale">
+      {LINKS.map(([href, label, icon]) => {
+        const on = href === '/' ? path === '/' : path.startsWith(href);
+        return href === '/seance' ? (
+          <Link key={href} href={href} prefetch className={on ? 'fab on' : 'fab'} aria-label="Commencer une séance">
+            <span className="circle"><Icon name={icon} size={28} /></span>
+            {label}
+          </Link>
+        ) : (
+          <Link key={href} href={href} prefetch className={on ? 'on' : ''} aria-current={on ? 'page' : undefined}>
+            <Icon name={icon} />
+            {label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

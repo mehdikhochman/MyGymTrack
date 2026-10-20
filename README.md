@@ -1,104 +1,98 @@
 # MyGymTrack
 
-Suivi musculation + nutrition personnel, avec un coach IA et une veille scientifique hebdomadaire.
-Next.js 16 (App Router) · Postgres Neon · Claude Haiku 5.5 · déployé sur Vercel Hobby. Interface en français, unités en kg, installable en PWA.
+Suivi musculation + nutrition pour tout le monde, avec un coach IA qui écrit le programme et une série quotidienne façon Duolingo.
+Next.js 16 (App Router) · Postgres Neon · Claude (Anthropic) · Vercel. Interface en français, unités en kg, installable en PWA (iPhone et Android).
 
 ## Fonctionnalités
 
-- **Séance** : choisir les muscles, puis les exercices (5-6 prédéfinis par muscle, ou un exercice perso). Ajouter une série = toucher l'exercice puis « Ajouter la série » (2 taps, valeurs pré-remplies). La dernière performance s'affiche à l'ouverture d'un exercice.
-- **Objectifs de la semaine** (lundi → dimanche) : séries par muscle vs cible (12-16 par défaut, Mollets 12), modifiables dans Réglages.
-- **Nutrition** : repas (kcal + protéines, nom optionnel), totaux du jour vs cibles (2 950 kcal / 130 g par défaut), poids de corps et moyenne par semaine.
-- **Historique** des séances, détail en un tap.
-- **Sauvegarde** : export JSON complet et import (remplace tout, dans une transaction).
-- **Coach** : « Analyser ma semaine » envoie au modèle 4 semaines de séries par muscle, la progression des exercices principaux, les calories/protéines des 14 derniers jours, la tendance du poids et les 10 dernières notes. Chaque rapport est sauvegardé.
-- **Chercheur** : cron hebdomadaire (lundi ~5h UTC) qui cherche des études récentes sur des sources fiables et enregistre au plus 5 notes.
+- **Comptes** : inscription (prénom, e-mail, mot de passe), connexion, mot de passe oublié par e-mail, déconnexion, suppression du compte. Chaque donnée appartient à un compte ; aucune page ni action ne lit les données d'un autre.
+- **Accueil en 4 étapes** : objectif (muscle, perte de gras, force, forme), séances par semaine, niveau, matériel (salle, haltères, sans matériel), corps (facultatif). L'app en déduit les objectifs calories / protéines / glucides / lipides (Mifflin-St Jeor) et un **programme de départ** sans IA.
+- **Programme** : séances en rotation (full body, haut/bas, push/pull/jambes selon les jours dispo), avec pour chaque exercice séries × fourchette de répétitions et repos. Le **coach IA** le réécrit à la demande à partir de l'historique (volume réalisé, progression, régularité, poids, dernier bilan) et des souhaits de l'utilisateur (« genou fragile », « 45 min max »…). Il ne peut choisir que des exercices de la bibliothèque compatibles avec le matériel et le niveau ; la réponse est validée (exercices inconnus retirés, séries/reps/repos bornés).
+- **Séance** : la séance du jour s'ouvre en un tap. Chaque exercice montre ses photos (départ / arrivée en alternance), l'objectif du jour (double progression dans la fourchette du coach : haut de fourchette atteint → + charge, sinon + 1 rep), la colonne « précédent », la saisie ✓, les records 🏆, le minuteur de repos réglé par le programme. On peut ajouter, remplacer ou créer un exercice.
+- **Bibliothèque** : 657 exercices de musculation (free-exercise-db, domaine public) traduits en français, 11 groupes musculaires, filtres par muscle et matériel, photos, consignes (traduites en français par l'IA à la demande, une fois pour tous).
+- **Série (flamme)** : toute séance, repas ou pesée du jour garde la flamme. 7 jours d'affilée = 1 gel de série (2 max) qui protège automatiquement un jour manqué. Paliers 3, 7, 14, 30, 50, 100… avec écran de célébration. Objectif hebdo de séances dessiné comme une barre à charger, semaines réussies d'affilée, calendrier des 5 dernières semaines. Rappel du soir par notification (web push) si rien n'est noté.
+- **Nutrition** : reste à manger, macros, recherche dans 120 aliments courants (valeurs Ciqual) et dans Open Food Facts (produits, code-barres tapé), quantité en grammes, repas fréquents en 1 tap, saisie manuelle, dépense réelle calculée (apports − variation de poids) avec objectif conseillé selon le but.
+- **Progrès** : flamme, gels, calendrier, records (1RM estimé et évolution sur 8 semaines), poids de corps, historique.
+- **Bilan IA de la semaine** et **veille scientifique** hebdomadaire (cron), comme avant.
+- **Mes données** : export JSON et import (remplace les données du compte).
 
-## Benchmark : les 3 meilleures apps et ce qu'on en a repris
+## Ce qui a été repris de Duolingo
 
-Analyse des fonctionnalités publiques (sites, docs, comparatifs 2026), sans décompilation.
+Ce qui rend la série de Duolingo efficace, et comment l'app l'adapte :
 
-| App | Domaine | Ce qu'elle fait de mieux | Repris dans MyGymTrack |
-|---|---|---|---|
-| **Hevy** | Journal de musculation | Ajout d'une série en 1 tap, colonne « précédent », minuteur de repos qui démarre seul, records en direct | Minuteur de repos automatique (±15 s, bip + vibration, durée dans Réglages), badge 🏆 Record quand une série bat le meilleur 1RM estimé |
-| **Fitbod** | Coach IA / progression | Recommandation de charge (surcharge progressive), carte de récupération musculaire, démos d'exercices | Objectif du jour (double progression 6-12 reps : 12 reps → +2,5 kg, sinon +1 rep) pré-rempli, état de récupération par muscle (48 h), démos 3D animées de chaque exercice |
-| **MacroFactor** | Nutrition | Dépense calculée à partir des apports et de la tendance du poids, objectif ajusté, saisie ultra-rapide des aliments récurrents | Dépense estimée sur 3 semaines (apports − variation de poids × 7 700 kcal/kg), objectif conseillé pour +0,25 kg/sem applicable en 1 tap, repas fréquents en 1 tap |
+| Mécanisme Duolingo | Pourquoi ça marche | Dans MyGymTrack |
+|---|---|---|
+| Une petite action suffit à garder la série | effort minimal pour ne pas casser l'habitude | un repas ou une pesée suffit les jours sans séance |
+| Gel de série (« streak freeze ») | protège d'un oubli sans décourager ; Duolingo a mesuré plus d'utilisateurs actifs quand on peut en détenir 2 | 1 gel tous les 7 jours, 2 max, utilisé automatiquement |
+| Paliers célébrés (7, 30, 100, 365…) | renforcement et fierté | écran plein de célébration, partage |
+| Peur de perdre (aversion à la perte) | la série devient précieuse | chiffre de la flamme toujours visible, grisé tant que rien n'est noté aujourd'hui, message « avant minuit » |
+| Rappel le soir | la majorité des séries perdues le sont par oubli | notification vers 19 h si rien n'est noté |
+| Objectif hebdomadaire | adapté à un sport qui ne se pratique pas tous les jours | barre à charger : une plaque par séance prévue |
 
-Les démos 3D (`components/Exercise3D.tsx`, `lib/moves.ts`) utilisent three.js, chargé uniquement à l'ouverture d'une démo : un mannequin articulé boucle entre deux poses clés par type de mouvement (33 mouvements, chaque exercice y est associé ; un exercice perso prend le mouvement type de son muscle).
+Sources : blog de Duolingo (« How Duolingo's streak builds habit », articles sur le gel de série et les rappels), analyses publiques de la croissance de Duolingo (Lenny's Newsletter).
 
-## Design
+## Mise en route (Vercel + Neon)
 
-Repris des conventions de ces apps (sans copier leurs visuels) :
-- **Hevy** : saisie en tableau *Série · Précédent · kg · Reps · ✓* ; ✓ valide la série pré-remplie (décocher la supprime et remet ses valeurs) ; minuteur de repos flottant ; stats de séance (séries, volume) ; barre d'onglets à icônes.
-- **MacroFactor** : anneaux calories/protéines, carte « Dépense estimée » avec gros chiffre, ajout rapide en puces, courbe de poids (ligne unique, info-bulle au toucher, tableau de détail).
-- **Fitbod** : pastille de récupération par muscle (vert = prêt, orange = en récupération).
-- Thème sombre, cartes arrondies, listes groupées façon iOS, police système (SF Pro sur iPhone), icônes SVG maison (`components/Icon.tsx`).
+1. Dans Neon → SQL Editor, coller et exécuter **tout** `schema.sql`. Il crée les tables et migre une base v1 sans rien perdre : les données existantes reviennent au compte dont l'e-mail est `OWNER_EMAIL` (à définir avant de créer ton compte ; sans cette variable, au tout premier compte créé).
+2. Variables d'environnement (Vercel → Settings → Environment Variables), voir `.env.example` :
+   - déjà là : `DATABASE_URL` (ou `POSTGRES_URL`), `CRON_SECRET`, `ANTHROPIC_API_KEY` ;
+   - `APP_PASSWORD` et `AUTH_SECRET` ne servent plus (on peut les supprimer) ;
+   - e-mails de réinitialisation : `RESEND_API_KEY`, `EMAIL_FROM` (compte gratuit sur resend.com, domaine vérifié) ;
+   - rappels : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`), `VAPID_SUBJECT` (`mailto:ton@email`) ;
+   - `OWNER_EMAIL` : ton e-mail, pour récupérer tes données actuelles ;
+   - facultatif : `AI_COACH_MODEL`, `AI_MODEL`, `APP_URL`.
+3. Redéployer.
 
-## Interface instantanée
+## Coût IA
 
-Chaque tap met l'écran à jour tout de suite ; le serveur suit en arrière-plan.
-- Onglets et liens principaux préchargés en continu (re-préchargés après chaque modification) : changer de page n'attend pas le réseau. Sinon, un squelette s'affiche immédiatement.
-- Séries, repas, pesées, notes, objectifs : ajout et suppression affichés avant la réponse du serveur (`useInstantList`, `useOptimistic`). En cas d'échec, l'élément revient et un message s'affiche. Supprimer un élément encore en cours d'enregistrement attend son vrai id.
-- « Commencer » ouvre la séance sans attendre sa création en base ; la dernière performance de chaque exercice est préchargée avec la page.
-- Suppression de séance et déconnexion : la page suivante s'affiche d'abord, la requête part ensuite (une server action lancée pendant une navigation la bloquerait jusqu'à sa fin).
-- Fonctions Vercel en Europe (`fra1`, voir `vercel.json`), à côté de la base Neon (Frankfurt) : sinon chaque requête traverse l'Atlantique (région par défaut : Washington).
-- iPhone : retour visuel au toucher activé ; au retour dans l'app après une pause, les données sont rafraîchies et le serveur réveillé immédiatement.
-- Seule exception : l'analyse du coach dépend de l'IA (~20 s) ; un indicateur s'affiche immédiatement.
+Modèles par défaut : **Claude Opus 5.5** pour le programme et le bilan (4 $ / 20 $ par million de tokens en entrée / sortie), **Claude Haiku 5.5** pour la traduction des consignes et la veille (0,10 $ / 0,50 $).
+
+| Action | Estimation |
+|---|---|
+| Écrire un programme (liste d'exercices ≈ 10 k tokens + données + réflexion) | ≈ 0,15-0,25 $ |
+| Bilan de la semaine | ≈ 0,05-0,10 $ |
+| Traduire les consignes d'un exercice (une fois pour tous) | < 0,001 $ |
+| Veille hebdomadaire (5 recherches web max) | ≈ 0,07 $ par semaine pour tout le site |
+
+Utilisateur actif (2 programmes + 4 bilans par mois) : **≈ 0,50-0,90 $/mois**. Limites par compte : 3 programmes et 5 bilans par jour. Pour diviser le coût par ~40 : `AI_COACH_MODEL=claude-haiku-5-5` (programmes un peu moins fins). Fixer un plafond de dépense dans la console Anthropic.
+
+## Limites des offres gratuites
+
+| Service | Limite | Remarque |
+|---|---|---|
+| Vercel Hobby | 1 M invocations/mois, 300 s max, crons 1×/jour | **usage non commercial uniquement** : pour un vrai produit public, passer en Pro (20 $/mois) |
+| Neon Free | 0,5 Go, 100 CU-heures/mois | quelques centaines d'utilisateurs actifs ; au-delà, offre payante |
+| Resend Free | 3 000 e-mails/mois, 100/jour | largement suffisant pour les réinitialisations |
+| Open Food Facts | gratuit, ~10 recherches/min par IP | appelé depuis le téléphone de l'utilisateur |
 
 ## Structure
 
 ```
-app/            pages (Accueil, séance, nutrition, historique, coach, réglages, login)
-app/actions.ts  toutes les mutations (server actions, chacune vérifie le cookie)
-app/api/backup  export / import JSON
-app/api/cron/research  tâche planifiée (protégée par CRON_SECRET)
-lib/db.ts       client Neon + requêtes d'agrégats (calculées en SQL à la lecture)
-lib/ai.ts       seul fichier qui appelle l'API du modèle
-lib/coach.ts    données envoyées au coach
-lib/auth.ts     mot de passe + cookie signé (HMAC)
-proxy.ts        bloque toute page / API sans cookie valide
-schema.sql      création des tables
+app/                    pages : accueil, seance, nutrition, progres, coach, exercices, reglages,
+                        login, inscription, mot-de-passe, bienvenue (onboarding)
+app/actions.ts          mutations (server actions), chacune vérifie la session et ne touche que les lignes du compte
+app/auth-actions.ts     inscription, connexion, réinitialisation, onboarding
+app/api/backup          export / import JSON du compte
+app/api/cron/research   veille hebdomadaire ; app/api/cron/remind : rappels du soir (CRON_SECRET)
+lib/auth.ts             mots de passe (scrypt), sessions (jeton aléatoire, haché en base), limitation de débit
+lib/db.ts               requêtes (toutes filtrées par utilisateur)
+lib/plan.ts             programme : types, programme de départ, exercices autorisés
+lib/streak.ts           série, gels, objectif hebdo (fonctions pures, testées)
+lib/ai.ts               seul fichier qui appelle l'API du modèle
+lib/exercises.json      bibliothèque générée par scripts/exercises.mjs (traductions : scripts/exercises-fr.json)
+lib/foods.ts            aliments courants (pour 100 g)
+public/sw.js            service worker des notifications
+schema.sql              création + migration (idempotent)
 ```
 
-## Limites des offres gratuites (vérifiées en octobre 2026)
-
-| Service | Limite gratuite | Usage de l'app |
-|---|---|---|
-| Vercel Hobby – fonctions | 1 M d'invocations/mois, 4 h CPU actif, durée max 300 s | quelques milliers d'invocations/mois avec le préchargement (< 1 % du quota) ; le chercheur est limité à 300 s, le coach à 60 s |
-| Vercel Hobby – cron | fréquence minimale 1×/jour, précision ±59 min | 1 cron, 1×/semaine |
-| Neon Free | 0,5 Go par projet, 100 CU-heures/mois, mise en veille après 5 min | quelques Mo par an ; la base dort la plupart du temps |
-| Anthropic API | payant à l'usage (pas d'offre gratuite) | voir coût estimé ci-dessous |
-
-Pourquoi pas une IA gratuite : l'offre gratuite de Gemini existe, mais Google peut utiliser les données de l'offre gratuite pour améliorer ses produits (ici : poids, alimentation, entraînement), et ses quotas de recherche changent souvent. Claude Haiku 5.5 coûte quelques centimes par mois pour cet usage et inclut un outil de recherche web avec filtrage de domaines. Pour changer de fournisseur, il suffit de réécrire `lib/ai.ts`.
-
-## Coût IA estimé
-
-Prix Claude Haiku 5.5 : 0,10 $ / M tokens en entrée, 0,50 $ / M en sortie ; recherche web 10 $ / 1 000 recherches.
-
-- Coach : ~4 k tokens en entrée + ~2-3 k en sortie ≈ **0,002 $ par analyse**. Même avec une analyse par jour : ~0,06 $/mois.
-- Chercheur : 5 recherches max (0,05 $) + au plus 150 k tokens (≤ 0,02 $) ≈ **0,07 $ par exécution**, 4-5 exécutions/mois ≈ 0,30 $/mois.
-- **Total : moins de 0,50 $/mois.** Un plafond de dépense de 5 $/mois laisse une large marge.
-
-## Limites du chercheur
-
-- 5 recherches web max par exécution (`max_uses`), uniquement sur ces domaines : PubMed/PMC (ncbi.nlm.nih.gov), JISSN, Springer, LWW, Taylor & Francis, Frontiers, MDPI, J. Physiology, Wiley, ScienceDirect, Nature, BMJ, Examine, Stronger By Science.
-- 5 notes max ; une note n'est gardée que si son URL fait partie des résultats réellement renvoyés par la recherche (pas d'URL inventée) ; les doublons sont ignorés (URL unique en base).
-- Budget de 150 k tokens vérifié entre chaque appel ; chaque appel est aussi plafonné par `max_tokens`.
-- Le contenu web est traité comme une donnée : il ne fait que produire du texte stocké, jamais d'action.
-
-## Développement local
+## Développement
 
 ```bash
 npm install
-cp .env.example .env.local   # remplir les variables
+cp .env.example .env.local   # remplir
 npm run dev
+npm test                     # tests unitaires (série, gels, progression)
+npm run exercises            # régénère la bibliothèque d'exercices
 ```
 
-`DATABASE_URL` doit pointer vers une base Neon (le driver `@neondatabase/serverless` utilise l'API HTTP de Neon). Pour tester le cron : `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/research`.
-
-## Inspiration (UX uniquement, aucun code repris)
-
-- [wger-project/wger](https://github.com/wger-project/wger) : réunir entraînement, nutrition et poids de corps dans une seule app perso.
-- [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym) : poids pré-remplis depuis la séance précédente, vue du volume par muscle, PWA installable.
-- [Snouzy/workout-cool](https://github.com/Snouzy/workout-cool) : exercices rangés par muscle principal.
-- [kcal-app/kcal](https://github.com/kcal-app/kcal) : journal alimentaire par jour avec totaux vs objectifs kcal/macros, saisie manuelle rapide.
-- [brandonp2412/FitBook](https://github.com/brandonp2412/FitBook) : historique de poids simple (liste + date) et suivi des calories du jour vs objectif.
+L'audit de sécurité et de code est dans [AUDIT.md](AUDIT.md).

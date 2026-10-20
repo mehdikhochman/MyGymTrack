@@ -1,28 +1,29 @@
 import { notFound } from 'next/navigation';
-import SessionLogger from '@/components/SessionLogger';
-import { MUSCLES, formatDate } from '@/lib/config';
-import { bestLifts, exerciseLists, getSettings, lastPerformances, sql, type Set } from '@/lib/db';
+import SessionLogger, { type Card } from '@/components/SessionLogger';
+import { requireUser } from '@/lib/auth';
+import { bestLifts, currentPlan, customExercises, getSettings, lastPerformances, sql, type Set } from '@/lib/db';
 
-export default async function SessionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ m?: string }> }) {
+export default async function SessionPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser();
   const id = Number((await params).id);
-  const picked = ((await searchParams).m ?? '').split(',');
-  const [[session], rows, exercises, last, best, settings] = await Promise.all([
-    sql`select id, date::text as date from sessions where id = ${id}`,
-    sql`select id, session_id, muscle, exercise, weight_kg, reps from sets where session_id = ${id} order by id`,
-    exerciseLists(),
-    lastPerformances(id),
-    bestLifts(id),
-    getSettings(),
+  if (!Number.isInteger(id)) notFound();
+  const [[session], rows, last, best, settings, custom, plan] = await Promise.all([
+    sql`select id, date::text as date, title, plan_day, (select min(created_at) from sets where session_id = ${id}) as started
+      from sessions where id = ${id} and user_id = ${user.id}`,
+    sql`select s.id, s.session_id, s.muscle, s.exercise, s.weight_kg, s.reps from sets s join sessions se on se.id = s.session_id
+      where s.session_id = ${id} and se.user_id = ${user.id} order by s.id`,
+    lastPerformances(user.id, id),
+    bestLifts(user.id, id),
+    getSettings(user.id),
+    customExercises(user.id),
+    currentPlan(user.id),
   ]);
   if (!session) notFound();
-  const sets = rows as Set[];
-  const muscles = MUSCLES.filter((m) => picked.includes(m) || sets.some((s) => s.muscle === m));
-
+  const day = session.plan_day !== null ? plan?.days?.[session.plan_day] : undefined;
+  const planned: Card[] = day?.exercises.map((e) => ({ name: e.name, group: e.group, sets: e.sets, reps: e.reps, rest: e.rest, note: e.note })) ?? [];
   return (
-    <>
-      <h1>Séance</h1>
-      <p className="subtitle">{formatDate(session.date)}</p>
-      <SessionLogger sessionId={id} initialMuscles={muscles} initialSets={sets} exercises={exercises} last={last} best={best} rest={Number(settings.rest)} />
-    </>
+    <SessionLogger sessionId={id} title={session.title ?? 'Séance'} date={session.date}
+      startedAt={session.started ? new Date(session.started).getTime() : Date.now()}
+      planned={planned} initialSets={rows as Set[]} last={last} best={best} rest={Number(settings.rest)} custom={custom} />
   );
 }

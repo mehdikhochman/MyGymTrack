@@ -32,19 +32,19 @@ export default function Weights({ weights, trend }: { weights: Weight[]; trend: 
     <>
       <div className="card">
         <p className="muted small">Dernière pesée{latest[0] && ` · ${formatDate(latest[0].date)}`}</p>
-        <p className="big num">{latest[0] ? `${latest[0].weight_kg} kg` : '—'}</p>
+        <p className="hero-num" style={{ fontSize: 44 }}>{latest[0] ? latest[0].weight_kg : '—'}<small>kg</small></p>
         {change !== null && (
           <p className="small">
-            <span className={change >= 0 ? 'up' : 'down'}>{change >= 0 ? '+' : ''}{change.toFixed(1)} kg</span>
+            <span className="num" style={{ fontSize: 17 }}>{change >= 0 ? '+' : ''}{change.toFixed(1).replace(".", ",")} kg</span>
             <span className="muted"> en {trend.length} semaines (moyennes hebdo)</span>
           </p>
         )}
         {trend.length > 1 && <WeightChart points={trend} />}
         {trend.length > 1 && (
-          <details>
-            <summary>Voir le tableau</summary>
+          <details className="small">
+            <summary className="muted">Voir le tableau</summary>
             {trend.map((w) => (
-              <div key={w.week} className="row small"><span className="muted">Sem. du {formatDate(w.week)}</span><span className="num">{w.avg.toFixed(1)} kg</span></div>
+              <div key={w.week} className="row small"><span className="muted">Sem. du {formatDate(w.week)}</span><span className="num">{w.avg.toFixed(1).replace(".", ",")} kg</span></div>
             ))}
           </details>
         )}
@@ -52,19 +52,19 @@ export default function Weights({ weights, trend }: { weights: Weight[]; trend: 
 
       <form ref={form} action={add} className="card stack">
         <div className="grid2">
-          <input name="weight" inputMode="decimal" placeholder="Poids (kg)" required />
-          <input type="date" name="date" defaultValue={today()} />
+          <input name="weight" inputMode="decimal" placeholder="Poids (kg)" required aria-label="Poids (kg)" />
+          <input type="date" name="date" defaultValue={today()} aria-label="Date" />
         </div>
         <button className="primary">Enregistrer la pesée</button>
       </form>
 
       {latest.length > 0 && (
-        <div className="list">
+        <div className="card flush list">
           {latest.map((w) => (
             <div key={w.id} className="item">
               <span className="grow">{formatDate(w.date)}</span>
-              <b className="num">{w.weight_kg} kg</b>
-              <button className="icon-btn" onClick={() => remove(w.id, deleteWeight, "La pesée n'a pas pu être supprimée.")} aria-label="Supprimer"><Icon name="x" size={18} /></button>
+              <b className="num" style={{ fontSize: 18 }}>{w.weight_kg} kg</b>
+              <button className="icon-btn" onClick={() => remove(w.id, deleteWeight, "La pesée n'a pas pu être supprimée.")} aria-label={`Supprimer la pesée du ${formatDate(w.date)}`}><Icon name="x" size={18} /></button>
             </div>
           ))}
         </div>
