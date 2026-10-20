@@ -11,6 +11,19 @@ export const aiEnabled = () => !!process.env.ANTHROPIC_API_KEY;
 let client: Anthropic | undefined;
 const ai = () => (client ??= new Anthropic());
 
+// Message shown to the user when an AI call fails; the details go to the server logs (Vercel → Logs).
+export function aiErrorMessage(e: unknown, fallback: string) {
+  console.error('AI call failed:', e);
+  if (e instanceof Anthropic.AuthenticationError) {
+    return 'Clé API refusée par Anthropic : ANTHROPIC_API_KEY doit être une clé de console.anthropic.com (sk-ant-…).';
+  }
+  if (e instanceof Anthropic.RateLimitError) return 'Le service IA est saturé. Réessaie dans une minute.';
+  if (e instanceof Anthropic.BadRequestError && /credit|billing/i.test(e.message)) {
+    return 'Crédit Anthropic épuisé : recharge le compte sur console.anthropic.com.';
+  }
+  return fallback;
+}
+
 function text(msg: { stop_reason: string | null; content: { type: string }[] }) {
   if (msg.stop_reason === 'refusal') throw new Error('Le modèle a refusé la demande');
   if (msg.stop_reason === 'max_tokens') throw new Error('Réponse incomplète du modèle');

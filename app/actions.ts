@@ -6,7 +6,7 @@ import { COOKIE, currentUser, endSession, hashPassword, limited, passwordError, 
 import { cookies } from 'next/headers';
 import { sql, latestWeight, type Set } from '@/lib/db';
 import { GOALS, LEVELS, MUSCLES, SETUPS, today } from '@/lib/config';
-import { aiEnabled, coachReport, generatePlan, translateSteps } from '@/lib/ai';
+import { aiEnabled, aiErrorMessage, coachReport, generatePlan, translateSteps } from '@/lib/ai';
 import { coachData } from '@/lib/coach';
 import { exerciseById } from '@/lib/exercises';
 import { nutritionTargets } from '@/lib/nutrition';
@@ -162,8 +162,8 @@ export async function runCoach() {
   try {
     const content = await coachReport(await coachData(user));
     await sql`insert into coach_reports (user_id, content) values (${user.id}, ${content})`;
-  } catch {
-    return 'Le coach n’a pas pu répondre. Réessaie dans un instant.';
+  } catch (e) {
+    return aiErrorMessage(e, 'Le coach n’a pas pu répondre. Réessaie dans un instant.');
   }
   refresh();
 }
@@ -179,8 +179,8 @@ export async function makePlan(_: string | undefined, fd: FormData) {
     try {
       const context = { ...(await coachData(user)), user_request: text(fd.get('wish'), 500) };
       plan = await generatePlan(context, candidates(user), user.days_per_week);
-    } catch {
-      return 'Le coach n’a pas pu écrire le programme. Réessaie dans un instant.';
+    } catch (e) {
+      return aiErrorMessage(e, 'Le coach n’a pas pu écrire le programme. Réessaie dans un instant.');
     }
   }
   await sql`insert into plans (user_id, content) values (${user.id}, ${JSON.stringify(plan)}::jsonb)`;
