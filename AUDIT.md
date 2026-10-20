@@ -24,12 +24,12 @@
 
 ## Risques restants et recommandations
 
-1. **Données de santé (RGPD)** : poids, alimentation et entraînement peuvent être des données de santé (art. 9). Avant d'ouvrir l'app au public : page de confidentialité, consentement explicite à l'inscription, mention du sous-traitant IA (Anthropic, États-Unis) et des hébergeurs (Vercel, Neon). L'export et la suppression de compte existent déjà.
+1. **Données de santé (RGPD)** : poids, alimentation et entraînement peuvent être des données de santé (art. 9). Avant d'ouvrir l'app au public : page de confidentialité, consentement explicite à l'inscription, mention des sous-traitants IA (OpenRouter et Anthropic, États-Unis) et des hébergeurs (Vercel, Neon). L'export et la suppression de compte existent déjà.
 2. **Vercel Hobby = usage non commercial** : passer en Pro pour un produit public.
 3. **Pas de vérification d'e-mail** : on peut créer un compte avec l'e-mail de quelqu'un d'autre (sans accès à ses données). À ajouter si l'app grandit (Resend est déjà branché).
 4. **CSP avec `'unsafe-inline'`** pour les scripts (requis par Next.js sans nonces). Passer à des nonces si l'app grandit.
 5. **Fuseau horaire fixe (Europe/Paris)** pour « aujourd'hui » et la série : correct en France, décalé ailleurs. Ajouter un fuseau par utilisateur pour un public international.
-6. **Coût IA** : les limites par compte bornent l'abus, mais pas le nombre de comptes. Fixer un plafond de dépense mensuel dans la console Anthropic.
+6. **Coût IA** : les limites par compte bornent l'abus, mais pas le nombre de comptes. Fixer une limite de crédit sur la clé OpenRouter (ou un plafond dans la console Anthropic).
 7. **Sauvegardes** : Neon garde un historique court sur l'offre gratuite ; exporter régulièrement ou passer à une offre avec restauration plus longue.
 8. **Images d'exercices** servies depuis GitHub (raw.githubusercontent.com, version figée) : pour une app publique, les copier sur un stockage à soi (Vercel Blob) pour ne pas dépendre de GitHub.
 

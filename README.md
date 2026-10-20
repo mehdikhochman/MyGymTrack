@@ -1,7 +1,7 @@
 # MyGymTrack
 
 Suivi musculation + nutrition pour tout le monde, avec un coach IA qui écrit le programme et une série quotidienne façon Duolingo.
-Next.js 16 (App Router) · Postgres Neon · Claude (Anthropic) · Vercel. Interface en français, unités en kg, installable en PWA (iPhone et Android).
+Next.js 16 (App Router) · Postgres Neon · Claude (via OpenRouter ou Anthropic) · Vercel. Interface en français, unités en kg, installable en PWA (iPhone et Android).
 
 ## Fonctionnalités
 
@@ -35,7 +35,8 @@ Sources : blog de Duolingo (« How Duolingo's streak builds habit », articles s
 
 1. Dans Neon → SQL Editor, coller et exécuter **tout** `schema.sql`. Il crée les tables et migre une base v1 sans rien perdre : les données existantes reviennent au compte dont l'e-mail est `OWNER_EMAIL` (à définir avant de créer ton compte ; sans cette variable, au tout premier compte créé).
 2. Variables d'environnement (Vercel → Settings → Environment Variables), voir `.env.example` :
-   - déjà là : `DATABASE_URL` (ou `POSTGRES_URL`), `CRON_SECRET`, `ANTHROPIC_API_KEY` ;
+   - déjà là : `DATABASE_URL` (ou `POSTGRES_URL`), `CRON_SECRET` ;
+   - coach IA : `OPENROUTER_API_KEY` (clé openrouter.ai, utilisée en priorité) ou `ANTHROPIC_API_KEY` (clé console.anthropic.com) ;
    - `APP_PASSWORD` et `AUTH_SECRET` ne servent plus (on peut les supprimer) ;
    - e-mails de réinitialisation : `RESEND_API_KEY`, `EMAIL_FROM` (compte gratuit sur resend.com, domaine vérifié) ;
    - rappels : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`), `VAPID_SUBJECT` (`mailto:ton@email`) ;
@@ -45,7 +46,7 @@ Sources : blog de Duolingo (« How Duolingo's streak builds habit », articles s
 
 ## Coût IA
 
-Modèles par défaut : **Claude Opus 5.5** pour le programme et le bilan (4 $ / 20 $ par million de tokens en entrée / sortie), **Claude Haiku 5.5** pour la traduction des consignes et la veille (0,10 $ / 0,50 $).
+Modèles par défaut (`anthropic/claude-opus-5.5` et `anthropic/claude-haiku-5.5` sur OpenRouter) : **Claude Opus 5.5** pour le programme et le bilan (4 $ / 20 $ par million de tokens en entrée / sortie), **Claude Haiku 5.5** pour la traduction des consignes et la veille (0,10 $ / 0,50 $).
 
 | Action | Estimation |
 |---|---|
@@ -54,7 +55,7 @@ Modèles par défaut : **Claude Opus 5.5** pour le programme et le bilan (4 $ / 
 | Traduire les consignes d'un exercice (une fois pour tous) | < 0,001 $ |
 | Veille hebdomadaire (5 recherches web max) | ≈ 0,07 $ par semaine pour tout le site |
 
-Utilisateur actif (2 programmes + 4 bilans par mois) : **≈ 0,50-0,90 $/mois**. Limites par compte : 3 programmes et 5 bilans par jour. Pour diviser le coût par ~40 : `AI_COACH_MODEL=claude-haiku-5-5` (programmes un peu moins fins). Fixer un plafond de dépense dans la console Anthropic.
+Utilisateur actif (2 programmes + 4 bilans par mois) : **≈ 0,50-0,90 $/mois**. Limites par compte : 3 programmes et 5 bilans par jour. Pour diviser le coût par ~40 : `AI_COACH_MODEL=anthropic/claude-haiku-5.5` sur OpenRouter (`claude-haiku-5-5` chez Anthropic), programmes un peu moins fins. Fixer un plafond de dépense (OpenRouter : limite de crédit sur la clé ; Anthropic : console). Avec OpenRouter, la veille utilise son module de recherche web (facturé en plus, quelques centimes par semaine).
 
 ## Limites des offres gratuites
 

@@ -157,7 +157,7 @@ export async function celebrated(milestone: number) {
 export async function runCoach() {
   const user = await currentUser();
   if (!user) throw new Error('Non autorisé');
-  if (!aiEnabled()) return 'Le coach IA n’est pas activé sur ce site (clé ANTHROPIC_API_KEY manquante).';
+  if (!aiEnabled()) return 'Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).';
   if (await limited(`coach:${user.id}`, 5, 86_400)) return 'Limite atteinte : 5 analyses par jour.';
   try {
     const content = await coachReport(await coachData(user));
@@ -174,7 +174,7 @@ export async function makePlan(_: string | undefined, fd: FormData) {
   if (!user) throw new Error('Non autorisé');
   let plan = templatePlan(user);
   if (fd.get('mode') !== 'template') {
-    if (!aiEnabled()) return 'Le coach IA n’est pas activé sur ce site (clé ANTHROPIC_API_KEY manquante).';
+    if (!aiEnabled()) return 'Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).';
     if (await limited(`plan:${user.id}`, 3, 86_400)) return 'Limite atteinte : 3 programmes par jour.';
     try {
       const context = { ...(await coachData(user)), user_request: text(fd.get('wish'), 500) };

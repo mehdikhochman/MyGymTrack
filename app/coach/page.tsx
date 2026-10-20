@@ -89,7 +89,7 @@ export default async function Coach() {
       <Link href="/exercices" className="card row"><span><Icon name="book" /> <b>Bibliothèque : 657 exercices</b></span><Icon name="chevron" size={18} /></Link>
 
       <h2>Bilan de la semaine</h2>
-      {ai ? <CoachRun /> : <p className="muted">Le coach IA n’est pas activé sur ce site (clé ANTHROPIC_API_KEY manquante).</p>}
+      {ai ? <CoachRun /> : <p className="muted">Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).</p>}
       {latest && (
         <div className="card" style={{ marginTop: 12 }}>
           <p className="muted small">Dernier bilan · {when(latest.created_at)}</p>
