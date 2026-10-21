@@ -1,6 +1,7 @@
-import { sql, activity, currentPlan, expenditure, getSettings, latestWeight, weightTrend } from './db';
+import { sql, activity, currentPlan, expenditure, getSettings, latestWeight, recentSessions, recentVolume, weightTrend } from './db';
 import { addDays, monday, today } from './config';
-import { weeklySetsOf } from './plan';
+import { volumeTargets, weeklySetsOf } from './plan';
+import { mainGroups, routineFromHistory, sessionsPerWeek } from './routine';
 import { computeStreak, weekStreak } from './streak';
 import type { User } from './auth';
 
@@ -8,7 +9,7 @@ import type { User } from './auth';
 export async function coachData(user: User) {
   const uid = user.id;
   const from = addDays(monday(), -21); // current week + 3 previous
-  const [settings, plan, volume, lifts, food, weight, energy, act, notes, [report], bw] = await Promise.all([
+  const [settings, plan, volume, lifts, food, weight, energy, act, notes, [report], bw, history, current] = await Promise.all([
     getSettings(uid),
     currentPlan(uid),
     sql`
@@ -34,7 +35,10 @@ export async function coachData(user: User) {
     sql`select title, summary from research_notes order by created_at desc limit 8`,
     sql`select created_at::date::text as date, content from coach_reports where user_id = ${uid} order by id desc limit 1`,
     latestWeight(uid),
+    recentSessions(uid, 42),
+    recentVolume(uid),
   ]);
+  const routine = routineFromHistory(history, Number(settings.rest));
   const streak = computeStreak(act.active, today());
   return {
     today: today(),
@@ -42,6 +46,18 @@ export async function coachData(user: User) {
       goal: user.goal, experience: user.experience, sessions_per_week_target: user.days_per_week, equipment: user.equipment,
       sex: user.sex, age: user.birth_year ? new Date().getFullYear() - user.birth_year : null, height_cm: user.height_cm, weight_kg: bw ?? null,
     },
+    split_preference: settings.split ?? 'keep',
+    sessions_per_week_actual: sessionsPerWeek(history, today()),
+    current_routine: routine?.days.map((d) => ({ day: d.name, exercises: d.exercises.map((e) => `${e.name} (${e.group}) ${e.sets}×${e.reps[0]}-${e.reps[1]}`) })) ?? null,
+    volume_targets: volumeTargets(user.experience, current),
+    recent_sessions: history.filter((h) => h.sets.length).slice(-16).map((h) => ({
+      date: h.date,
+      main_groups: mainGroups(h.sets),
+      exercises: [...new Set(h.sets.map((x) => x.exercise))].map((name) => {
+        const done = h.sets.filter((x) => x.exercise === name);
+        return `${name}: ${done.map((x) => `${x.weight_kg}×${x.reps}`).join(' ')}`;
+      }),
+    })),
     targets: { kcal_per_day: Number(settings.kcal), protein_g_per_day: Number(settings.protein) },
     current_programme: plan && {
       name: plan.name,

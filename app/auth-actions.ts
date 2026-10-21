@@ -8,7 +8,7 @@ import {
 import { emailEnabled, sendEmail } from '@/lib/email';
 import { nutritionTargets } from '@/lib/nutrition';
 import { templatePlan } from '@/lib/plan';
-import { GOALS, LEVELS, SETUPS, today } from '@/lib/config';
+import { GOALS, LEVELS, SETUPS, SPLIT_CHOICES, today } from '@/lib/config';
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const email = (fd: FormData) => str(fd, 'email').toLowerCase().slice(0, 254);
@@ -105,6 +105,7 @@ export async function completeOnboarding(fd: FormData) {
     sex: str(fd, 'sex') === 'f' ? 'f' : str(fd, 'sex') === 'm' ? 'm' : null,
     birth_year: num('birth_year', 1920, new Date().getFullYear() - 13),
     height_cm: num('height', 120, 230),
+    split: str(fd, 'split') in SPLIT_CHOICES ? str(fd, 'split') : 'auto',
   };
   const weight = num('weight', 30, 300);
   const targets = nutritionTargets(profile, weight ?? (profile.sex === 'f' ? 62 : 75));
@@ -114,7 +115,7 @@ export async function completeOnboarding(fd: FormData) {
       days_per_week = ${profile.days_per_week}, sex = ${profile.sex}, birth_year = ${profile.birth_year}, height_cm = ${profile.height_cm},
       onboarded = true where id = ${user.id}`,
     ...(weight ? [sql`insert into body_weight (user_id, date, weight_kg) values (${user.id}, ${today()}, ${weight})`] : []),
-    ...Object.entries(targets).map(([key, value]) => sql`
+    ...Object.entries({ ...targets, split: profile.split }).map(([key, value]) => sql`
       insert into settings (user_id, key, value) values (${user.id}, ${key}, ${String(value)})
       on conflict (user_id, key) do update set value = excluded.value`),
     sql`insert into plans (user_id, content) select ${user.id}, ${JSON.stringify(templatePlan(profile))}::jsonb

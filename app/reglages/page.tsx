@@ -13,7 +13,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
       <p className="lede">{user.email}</p>
 
       <h2>Profil</h2>
-      <ProfileForm user={user} />
+      <ProfileForm user={user} split={settings.split ?? 'keep'} />
 
       <h2>Objectifs</h2>
       <TargetsForm settings={settings} />

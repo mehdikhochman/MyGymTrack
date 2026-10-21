@@ -3,9 +3,9 @@ import { exerciseById, EXERCISES, type Exercise } from './exercises';
 // A training programme: one entry per training day, done in rotation.
 export type PlanExercise = { id: string; name: string; group: string; sets: number; reps: [number, number]; rest: number; note?: string };
 export type PlanDay = { name: string; focus: string; exercises: PlanExercise[] };
-export type Plan = { name: string; summary: string; days: PlanDay[]; source: 'template' | 'ai' };
+export type Plan = { name: string; summary: string; days: PlanDay[]; source: 'template' | 'ai' | 'routine' };
 
-export type Profile = { goal: string; experience: string; days_per_week: number; equipment: string };
+export type Profile = { goal: string; experience: string; days_per_week: number; equipment: string; split?: string };
 
 // Weekly hard sets per muscle group the programme gives (each day is done once a week).
 export function weeklySetsOf(plan: Pick<Plan, 'days'>) {
@@ -66,6 +66,15 @@ const SLOTS: Record<string, [string | null, string | null, string | null]> = {
   triceps: ['Triceps_Pushdown', 'Standing_Dumbbell_Triceps_Extension', 'Bench_Dips'],
   triceps2: ['EZ-Bar_Skullcrusher', 'Lying_Dumbbell_Tricep_Extension', 'Push-Ups_-_Close_Triceps_Position'],
   abs: ['Cable_Crunch', 'Crunches', 'Plank'],
+  dips: ['Dips_-_Chest_Version', 'Decline_Dumbbell_Bench_Press', 'Pushups'],
+  pecdeck: ['Butterfly', null, null],
+  deadlift: ['Barbell_Deadlift', null, null],
+  straightarm: ['Straight-Arm_Pulldown', null, null],
+  cablelateral: ['Standing_Low-Pulley_Deltoid_Raise', 'Arnold_Dumbbell_Press', null],
+  shrug: ['Barbell_Shrug', 'Dumbbell_Shrug', null],
+  preacher: ['Preacher_Curl', 'Concentration_Curls', null],
+  tricepsoh: ['Cable_Rope_Overhead_Triceps_Extension', 'Standing_Dumbbell_Triceps_Extension', null],
+  seatedcalf: ['Seated_Calf_Raise', null, null],
 };
 
 const DAY: Record<string, [string, string, string[]]> = {
@@ -79,21 +88,33 @@ const DAY: Record<string, [string, string, string[]]> = {
   push: ['Push', 'Pecs, épaules, triceps', ['hpush', 'ipush', 'vpush', 'lateral', 'chestfly', 'triceps', 'triceps2']],
   pull: ['Pull', 'Dos, arrière d’épaules, biceps', ['vpull', 'row', 'hpull', 'reardelt', 'biceps', 'biceps2']],
   legs: ['Jambes', 'Quadriceps, ischios, fessiers, mollets', ['squat', 'hinge', 'legpress', 'legcurl', 'calves', 'abs']],
+  chest: ['Pecs', 'Pectoraux', ['hpush', 'ipush', 'dips', 'chestfly', 'pecdeck']],
+  back: ['Dos', 'Dos, trapèzes', ['vpull', 'row', 'hpull', 'straightarm', 'deadlift']],
+  shoulders: ['Épaules', 'Épaules, trapèzes', ['vpush', 'lateral', 'cablelateral', 'reardelt', 'shrug', 'abs']],
+  arms: ['Bras', 'Biceps, triceps', ['biceps', 'triceps', 'biceps2', 'triceps2', 'preacher', 'tricepsoh']],
+  legsBro: ['Jambes', 'Quadriceps, ischios, fessiers, mollets', ['squat', 'legpress', 'hinge', 'legcurl', 'legext', 'calves', 'seatedcalf']],
 };
 
-const SPLITS: Record<number, [string, string[]]> = {
+const BY_DAYS: Record<number, [string, string[]]> = {
   2: ['Full body 2 jours', ['fbA', 'fbB']],
   3: ['Full body 3 jours', ['fbA', 'fbB', 'fbC']],
   4: ['Haut / bas 4 jours', ['upA', 'loA', 'upB', 'loB']],
   5: ['Haut / bas + PPL 5 jours', ['upA', 'loA', 'push', 'pull', 'legs']],
   6: ['Push / pull / jambes 6 jours', ['push', 'pull', 'legs', 'push', 'pull', 'legs']],
 };
+// Split chosen by the user (Réglages or coach page); 'auto' and 'keep' fall back to the number of days.
+const BY_SPLIT: Record<string, [string, string[]]> = {
+  full: ['Full body', ['fbA', 'fbB', 'fbC']],
+  upper_lower: ['Haut / bas', ['upA', 'loA', 'upB', 'loB']],
+  ppl: ['Push / pull / jambes', ['push', 'pull', 'legs']],
+  bro: ['Un muscle par jour (bro split)', ['chest', 'back', 'shoulders', 'arms', 'legsBro']],
+};
 
 // Starter programme built without AI, so the app works from the first minute.
 export function templatePlan(p: Profile): Plan {
   const setup = p.equipment === 'dumbbells' ? 1 : p.equipment === 'bodyweight' ? 2 : 0;
-  const [name, days] = SPLITS[Math.min(6, Math.max(2, p.days_per_week))];
-  return {
+  const [name, days] = BY_SPLIT[p.split ?? ''] ?? BY_DAYS[Math.min(6, Math.max(2, p.days_per_week))];
+  const plan: Plan = {
     name,
     summary: 'Programme de départ construit selon ton objectif, ton niveau et ton matériel. Demande au coach IA de l’adapter quand tu as quelques séances.',
     source: 'template',
@@ -110,4 +131,34 @@ export function templatePlan(p: Profile): Plan {
       };
     }),
   };
+  return withVolume(plan, volumeTargets(p.experience));
+}
+
+// Weekly hard sets per muscle group a programme should reach (evidence: ~10-20 for hypertrophy),
+// raised to what the user already does, so a new programme never trains them less.
+const MAIN = ['Pecs', 'Dos', 'Épaules', 'Quadriceps', 'Ischios'];
+export function volumeTargets(experience: string, current: Record<string, number> = {}) {
+  const level = experience === 'beginner' ? 0 : experience === 'advanced' ? 2 : 1;
+  const base: Record<string, number> = {
+    ...Object.fromEntries(MAIN.map((g) => [g, [10, 14, 16][level]])),
+    Biceps: [8, 10, 12][level], Triceps: [8, 10, 12][level], Mollets: [6, 8, 10][level], Fessiers: [4, 6, 8][level], Abdos: [4, 6, 6][level],
+  };
+  for (const [g, n] of Object.entries(current)) base[g] = Math.max(base[g] ?? 0, Math.min(30, Math.round(n)));
+  return base;
+}
+
+// Adds sets (up to 5 per exercise) to the exercises of each group below its weekly target.
+export function withVolume(plan: Plan, targets: Record<string, number>): Plan {
+  const days = plan.days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e })) }));
+  for (const [group, target] of Object.entries(targets)) {
+    const list = days.flatMap((d) => d.exercises).filter((e) => e.group === group);
+    let total = list.reduce((t, e) => t + e.sets, 0);
+    while (list.length && total < target) {
+      const e = list.filter((x) => x.sets < 5).sort((a, b) => a.sets - b.sets)[0];
+      if (!e) break;
+      e.sets++;
+      total++;
+    }
+  }
+  return { ...plan, days };
 }

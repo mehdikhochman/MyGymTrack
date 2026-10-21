@@ -121,3 +121,23 @@ export async function customExercises(uid: number) {
     select distinct s.exercise as name, s.muscle as group from sets s join sessions se on se.id = s.session_id
     where se.user_id = ${uid} order by 1`) as { name: string; group: string }[];
 }
+
+// Sessions of the last `days` days with their sets in order (routine detection, coach context).
+export async function recentSessions(uid: number, days = 42) {
+  return (await sql`
+    select se.date::text as date, se.title,
+      coalesce(json_agg(json_build_object('exercise', s.exercise, 'muscle', s.muscle, 'reps', s.reps, 'weight_kg', s.weight_kg) order by s.id)
+        filter (where s.id is not null), '[]') as sets
+    from sessions se left join sets s on s.session_id = se.id
+    where se.user_id = ${uid} and se.date > ${addDays(today(), -days)}
+    group by se.id order by se.date, se.id`) as import('./routine').HistorySession[];
+}
+
+// Average weekly sets per muscle group over the last 3 complete weeks.
+export async function recentVolume(uid: number): Promise<Record<string, number>> {
+  const rows = await sql`
+    select s.muscle, (count(*) / 3.0)::real as n from sets s join sessions se on se.id = s.session_id
+    where se.user_id = ${uid} and se.date >= ${addDays(monday(), -21)} and se.date < ${monday()}
+    group by s.muscle`;
+  return Object.fromEntries(rows.map((r) => [r.muscle, r.n]));
+}

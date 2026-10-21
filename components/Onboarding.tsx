@@ -48,6 +48,14 @@ export default function Onboarding({ name }: { name: string }) {
             <label key={n}><input type="radio" name="days" value={n} defaultChecked={n === 3} /><span>{n}</span></label>
           ))}
         </div>
+        <h3 style={{ marginTop: 16 }}>Comment tu organises tes séances ?</h3>
+        <Choices name="split" options={{
+          auto: { label: 'Laisse le coach choisir', detail: 'Le plus efficace pour ton nombre de séances' },
+          bro: { label: 'Un muscle par jour', detail: 'Bro split : pecs, dos, épaules, bras, jambes' },
+          ppl: { label: 'Push / pull / jambes', detail: 'Poussée, tirage, jambes' },
+          upper_lower: { label: 'Haut / bas du corps', detail: 'En alternance' },
+          full: { label: 'Full body', detail: 'Tout le corps à chaque séance' },
+        }} initial="auto" />
         <h3 style={{ marginTop: 16 }}>Ton niveau</h3>
         <Choices name="experience" options={{
           beginner: { label: LEVELS.beginner, detail: 'Moins d’un an de musculation régulière' },

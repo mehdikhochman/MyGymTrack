@@ -5,8 +5,8 @@ import { Thumb } from '@/components/ExerciseDemo';
 import { Meter } from '@/components/Streak';
 import { requireUser } from '@/lib/auth';
 import { aiEnabled } from '@/lib/ai';
-import { formatDate, plural } from '@/lib/config';
-import { currentPlan, sql, weeklySets } from '@/lib/db';
+import { addDays, formatDate, plural, today } from '@/lib/config';
+import { currentPlan, getSettings, sql, weeklySets } from '@/lib/db';
 import { exerciseById } from '@/lib/exercises';
 import { weeklySetsOf } from '@/lib/plan';
 
@@ -24,16 +24,22 @@ function Report({ content }: { content: string }) {
   );
 }
 
+const SOURCE: Record<string, string> = { ai: 'Coach IA', template: 'Programme de base', routine: 'Ma routine' };
+
 const when = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' });
 
 export default async function Coach() {
   const user = await requireUser();
-  const [plan, done, reports, notes] = await Promise.all([
+  const [plan, done, reports, notes, settings, [{ n: logged }]] = await Promise.all([
     currentPlan(user.id),
     weeklySets(user.id),
     sql`select id, created_at, content from coach_reports where user_id = ${user.id} order by id desc limit 6`,
     sql`select id, title, summary, source_url, created_at from research_notes order by id desc limit 10`,
+    getSettings(user.id),
+    sql`select count(*)::int as n from sessions se where se.user_id = ${user.id} and se.date > ${addDays(today(), -42)}
+      and (select count(*) from sets where session_id = se.id) >= 3`,
   ]);
+  const hasHistory = logged > 0;
   const ai = aiEnabled();
   const volume = plan ? weeklySetsOf(plan) : {};
   const [latest, ...older] = reports;
@@ -48,7 +54,7 @@ export default async function Coach() {
           <div className="card">
             <div className="workout-head">
               <h2 style={{ margin: 0 }}>{plan.name}</h2>
-              <span className={plan.source === 'ai' ? 'badge' : 'badge gold'}>{plan.source === 'ai' ? 'Coach IA' : 'Programme de base'}</span>
+              <span className={plan.source === 'template' ? 'badge gold' : plan.source === 'routine' ? 'badge green' : 'badge'}>{SOURCE[plan.source] ?? 'Programme'}</span>
             </div>
             <p className="muted small">Depuis le {formatDate(plan.created_at.slice(0, 10))} · {plural(plan.days.length, 'séance')} en rotation</p>
             <p style={{ marginTop: 8 }}>{plan.summary}</p>
@@ -68,7 +74,7 @@ export default async function Coach() {
               <summary><b>{d.name}</b> <span className="muted small">· {d.focus}</span></summary>
               <div className="list" style={{ margin: '8px -16px -8px' }}>
                 {d.exercises.map((e) => (
-                  <Link key={e.id} href={`/exercices/${e.id}`} className="item">
+                  <Link key={e.id} href={exerciseById(e.id) ? `/exercices/${e.id}` : `/exercices?q=${encodeURIComponent(e.name)}`} className="item">
                     <Thumb id={e.id} images={exerciseById(e.id)?.images} />
                     <span className="grow">
                       <span className="ellipsis" style={{ display: 'block', fontWeight: 700 }}>{e.name}</span>
@@ -85,7 +91,7 @@ export default async function Coach() {
         <p className="muted">Pas encore de programme.</p>
       )}
 
-      <PlanForm ai={ai} />
+      <PlanForm ai={ai} split={settings.split ?? 'keep'} hasHistory={hasHistory} />
       <Link href="/exercices" className="card row"><span><Icon name="book" /> <b>Bibliothèque : 657 exercices</b></span><Icon name="chevron" size={18} /></Link>
 
       <h2>Bilan de la semaine</h2>

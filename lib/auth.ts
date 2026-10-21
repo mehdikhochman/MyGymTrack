@@ -96,3 +96,16 @@ export async function limited(key: string, max: number, seconds: number) {
   if (Math.random() < 0.02) await sql`delete from rate_events where at < now() - interval '2 days'`;
   return r.n >= max;
 }
+
+// AI quotas: only calls that succeeded are recorded (spendQuota), so failed attempts never use them up.
+// Returns null while under `max` in the last `seconds`, else when the next call becomes possible.
+export async function quotaReached(key: string, max: number, seconds: number) {
+  const [r] = await sql`
+    select count(*)::int as n, min(at) as first from rate_events
+    where key = ${key} and at > now() - make_interval(secs => ${seconds})`;
+  return r.n < max ? null : new Date(new Date(r.first).getTime() + seconds * 1000);
+}
+
+export async function spendQuota(key: string) {
+  await sql`insert into rate_events (key) values (${key})`;
+}

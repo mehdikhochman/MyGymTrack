@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from 'react';
 import { changePassword, deleteAccount, deletePush, savePush, saveProfile, saveSettings } from '@/app/actions';
 import Submit from './Submit';
-import { GOALS, LEVELS, SETUPS } from '@/lib/config';
+import { GOALS, LEVELS, SETUPS, SPLIT_CHOICES } from '@/lib/config';
 import type { User } from '@/lib/auth';
 
 // Saving shows "Enregistré" next to the button for a moment.
@@ -11,7 +11,7 @@ function useSaved(action: (fd: FormData) => Promise<void>) {
   return useActionState(async (_: boolean, fd: FormData) => { await action(fd); return true; }, false);
 }
 
-export function ProfileForm({ user }: { user: User }) {
+export function ProfileForm({ user, split }: { user: User; split: string }) {
   const [saved, run] = useSaved(saveProfile);
   return (
     <form action={run} className="card stack">
@@ -27,6 +27,9 @@ export function ProfileForm({ user }: { user: User }) {
           <select name="experience" defaultValue={user.experience}>{Object.entries(LEVELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         </label>
       </div>
+      <label className="field">Organisation des séances
+        <select name="split" defaultValue={split}>{Object.entries(SPLIT_CHOICES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+      </label>
       <label className="field">Matériel
         <select name="equipment" defaultValue={user.equipment}>{Object.entries(SETUPS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}</select>
       </label>

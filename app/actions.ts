@@ -2,15 +2,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { COOKIE, currentUser, endSession, hashPassword, limited, passwordError, sha256, userId, verifyOrWaste } from '@/lib/auth';
+import { COOKIE, currentUser, endSession, hashPassword, limited, passwordError, quotaReached, sha256, spendQuota, userId, verifyOrWaste } from '@/lib/auth';
 import { cookies } from 'next/headers';
-import { sql, latestWeight, type Set } from '@/lib/db';
-import { GOALS, LEVELS, MUSCLES, SETUPS, today } from '@/lib/config';
+import { sql, customExercises, getSettings, latestWeight, recentSessions, recentVolume, type Set } from '@/lib/db';
+import { GOALS, LEVELS, MUSCLES, SETUPS, SPLIT_CHOICES, today } from '@/lib/config';
 import { aiEnabled, aiErrorMessage, coachReport, generatePlan, translateSteps } from '@/lib/ai';
 import { coachData } from '@/lib/coach';
-import { exerciseById } from '@/lib/exercises';
+import { EXERCISES, exerciseById, exerciseByName } from '@/lib/exercises';
 import { nutritionTargets } from '@/lib/nutrition';
-import { candidates, templatePlan } from '@/lib/plan';
+import { candidates, templatePlan, volumeTargets } from '@/lib/plan';
+import { routineFromHistory } from '@/lib/routine';
 import steps from '@/lib/exercise-steps.json';
 
 // Every action checks the session (userId) and only touches the user's own rows.
@@ -136,6 +137,7 @@ export async function saveProfile(fd: FormData) {
     update users set name = ${profile.name}, goal = ${profile.goal}, experience = ${profile.experience}, equipment = ${profile.equipment},
       days_per_week = ${profile.days_per_week}, sex = ${profile.sex}, birth_year = ${profile.birth_year}, height_cm = ${profile.height_cm}
     where id = ${user.id}`;
+  await saveSplit(user.id, fd.get('split'));
   if (fd.get('targets') === 'on') {
     const weight = (await latestWeight(user.id)) ?? (profile.sex === 'f' ? 62 : 75);
     const t = nutritionTargets(profile, weight);
@@ -152,33 +154,65 @@ export async function celebrated(milestone: number) {
     on conflict (user_id, key) do update set value = excluded.value`;
 }
 
-// AI coach
+// AI coach. Quotas count only calls that succeeded (a failed call never uses one).
+
+const NO_AI = 'Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).';
+const until = (d: Date) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
 export async function runCoach() {
   const user = await currentUser();
   if (!user) throw new Error('Non autorisé');
-  if (!aiEnabled()) return 'Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).';
-  if (await limited(`coach:${user.id}`, 5, 86_400)) return 'Limite atteinte : 5 analyses par jour.';
+  if (!aiEnabled()) return NO_AI;
+  const next = await quotaReached(`ai-review:${user.id}`, 5, 86_400);
+  if (next) return `Tu as utilisé tes 5 bilans des dernières 24 h. Prochain bilan possible à ${until(next)}.`;
   try {
     const content = await coachReport(await coachData(user));
     await sql`insert into coach_reports (user_id, content) values (${user.id}, ${content})`;
+    await spendQuota(`ai-review:${user.id}`);
   } catch (e) {
     return aiErrorMessage(e, 'Le coach n’a pas pu répondre. Réessaie dans un instant.');
   }
   refresh();
 }
 
-// New programme: written by the AI coach from the user's data and wishes, or the built-in template without AI.
+async function saveSplit(uid: number, split: FormDataEntryValue | null) {
+  if (typeof split !== 'string' || !(split in SPLIT_CHOICES)) return;
+  await sql`
+    insert into settings (user_id, key, value) values (${uid}, 'split', ${split})
+    on conflict (user_id, key) do update set value = excluded.value`;
+}
+
+// New programme, three ways:
+// - "routine": the user's current routine rebuilt from their sessions (no AI);
+// - "template": the built-in programme for their split (no AI);
+// - default: written by the AI coach from their profile, history, routine and wishes.
 export async function makePlan(_: string | undefined, fd: FormData) {
   const user = await currentUser();
   if (!user) throw new Error('Non autorisé');
-  let plan = templatePlan(user);
-  if (fd.get('mode') !== 'template') {
-    if (!aiEnabled()) return 'Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).';
-    if (await limited(`plan:${user.id}`, 3, 86_400)) return 'Limite atteinte : 3 programmes par jour.';
+  await saveSplit(user.id, fd.get('split'));
+  const [settings, history, current, custom] = await Promise.all([
+    getSettings(user.id), recentSessions(user.id, 42), recentVolume(user.id), customExercises(user.id),
+  ]);
+  const split = settings.split ?? 'keep';
+  const mode = fd.get('mode');
+  let plan;
+  if (mode === 'routine') {
+    plan = routineFromHistory(history, Number(settings.rest));
+    if (!plan) return 'Pas encore assez de séances notées pour reprendre ta routine : note au moins une semaine d’entraînement.';
+  } else if (mode === 'template') {
+    plan = templatePlan({ ...user, split });
+  } else {
+    if (!aiEnabled()) return NO_AI;
+    const next = await quotaReached(`ai-plan:${user.id}`, 5, 86_400);
+    if (next) return `Tu as utilisé tes 5 programmes des dernières 24 h. Prochain essai possible à ${until(next)}.`;
     try {
       const context = { ...(await coachData(user)), user_request: text(fd.get('wish'), 500) };
-      plan = await generatePlan(context, candidates(user), user.days_per_week);
+      // The user's own library exercises stay available even if outside their level or equipment filter.
+      const used = new Set(history.flatMap((h) => h.sets.map((x) => x.exercise)));
+      const pool = [...new Map([...candidates(user), ...EXERCISES.filter((e) => used.has(e.name))].map((e) => [e.id, e])).values()];
+      const own = custom.filter((c) => !exerciseByName(c.name));
+      plan = await generatePlan(context, pool, own, volumeTargets(user.experience, current));
+      await spendQuota(`ai-plan:${user.id}`);
     } catch (e) {
       return aiErrorMessage(e, 'Le coach n’a pas pu écrire le programme. Réessaie dans un instant.');
     }
@@ -196,8 +230,9 @@ export async function translateExercise(id: string) {
   if (!e || !en?.length || !aiEnabled()) return null;
   const [cached] = await sql`select steps from exercise_fr where id = ${id}`;
   if (cached) return cached.steps as string[];
-  if (await limited(`translate:${uid}`, 30, 86_400)) return null;
+  if (await quotaReached(`ai-translate:${uid}`, 30, 86_400)) return null;
   const fr = await translateSteps(e.name, en);
+  await spendQuota(`ai-translate:${uid}`);
   await sql`insert into exercise_fr (id, steps) values (${id}, ${JSON.stringify(fr)}::jsonb) on conflict (id) do nothing`;
   return fr;
 }

@@ -15,6 +15,16 @@ export const GOALS: Record<string, { label: string; detail: string }> = {
   strength: { label: 'Gagner en force', detail: 'Charges lourdes, peu de répétitions' },
   fit: { label: 'Rester en forme', detail: 'Équilibre, régularité' },
 };
+// How the user splits their training week (stored in settings as "split").
+export const SPLIT_CHOICES: Record<string, string> = {
+  keep: 'Garder mon organisation actuelle',
+  auto: 'Laisser le coach choisir',
+  full: 'Full body',
+  upper_lower: 'Haut / bas',
+  ppl: 'Push / pull / jambes',
+  bro: 'Un muscle par jour (bro split)',
+};
+
 export const LEVELS: Record<string, string> = { beginner: 'Débutant', intermediate: 'Intermédiaire', advanced: 'Confirmé' };
 export const SETUPS: Record<string, { label: string; detail: string }> = {
   gym: { label: 'Salle de sport', detail: 'Barres, haltères, poulies, machines' },
