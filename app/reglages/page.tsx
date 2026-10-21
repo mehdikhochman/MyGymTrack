@@ -41,6 +41,12 @@ export default async function Settings({ searchParams }: { searchParams: Promise
       </form>
       <PasswordForm />
       <DeleteAccount />
+
+      <p className="muted tiny center end">
+        Logo : « Weight lifting up » par Delapouite, <a href="https://game-icons.net" target="_blank" rel="noopener noreferrer">game-icons.net</a>, licence{' '}
+        <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">CC BY 3.0</a>.
+        Exercices : free-exercise-db (domaine public).
+      </p>
     </>
   );
 }

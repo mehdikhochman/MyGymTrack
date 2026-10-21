@@ -2,7 +2,7 @@
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   event.waitUntil(self.registration.showNotification(data.title || 'MyGymTrack', {
-    body: data.body, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: data.url || '/' },
+    body: data.body, icon: '/icon-192.png', badge: '/badge-96.png', data: { url: data.url || '/' },
   }));
 });
 

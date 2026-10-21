@@ -97,3 +97,8 @@ npm run exercises            # régénère la bibliothèque d'exercices
 ```
 
 L'audit de sécurité et de code est dans [AUDIT.md](AUDIT.md).
+
+## Crédits
+
+- Logo : « Weight lifting up » par Delapouite, [game-icons.net](https://game-icons.net), licence [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (recoloré sur fond bleu). Source vectorielle : `public/logo.svg`.
+- Exercices et photos : [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (domaine public).
