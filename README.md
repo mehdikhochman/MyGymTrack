@@ -44,6 +44,8 @@ Sources : blog de Duolingo (« How Duolingo's streak builds habit », articles s
    - facultatif : `AI_COACH_MODEL`, `AI_MODEL`, `APP_URL`.
 3. Redéployer.
 
+Vercel Hobby ne déploie que les commits dont l'auteur est le propriétaire du compte : un commit fait par un outil (auteur « Claude ») reste bloqué tant qu'un commit du propriétaire ne suit pas.
+
 ## Coût IA
 
 Modèles par défaut (`anthropic/claude-opus-5.5` et `anthropic/claude-haiku-5.5` sur OpenRouter) : **Claude Opus 5.5** pour le programme et le bilan (4 $ / 20 $ par million de tokens en entrée / sortie), **Claude Haiku 5.5** pour la traduction des consignes et la veille (0,10 $ / 0,50 $).
