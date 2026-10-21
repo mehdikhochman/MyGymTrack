@@ -8,7 +8,7 @@ import { aiEnabled } from '@/lib/ai';
 import { addDays, formatDate, plural, today } from '@/lib/config';
 import { currentPlan, getSettings, sql, weeklySets } from '@/lib/db';
 import { exerciseById } from '@/lib/exercises';
-import { weeklySetsOf } from '@/lib/plan';
+import { WEEKLY_MAX, weeklySetsOf } from '@/lib/plan';
 
 export const maxDuration = 120; // AI programme generation
 
@@ -86,8 +86,9 @@ export default async function Coach() {
           <h2>Séries faites cette semaine</h2>
           <div className="card">
             {Object.entries(volume).sort((a, b) => b[1] - a[1]).map(([group, target]) => (
-              <Meter key={group} label={group} value={done[group] ?? 0} target={target} unit="séries" />
+              <Meter key={group} label={group} value={done[group] ?? 0} target={Math.min(target, WEEKLY_MAX)} unit="séries" />
             ))}
+            <p className="muted tiny">Zone utile selon la recherche : 10 à 20 séries par muscle et par semaine, 12 maximum par séance.</p>
           </div>
         </>
       ) : (

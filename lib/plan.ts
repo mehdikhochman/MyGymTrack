@@ -32,12 +32,12 @@ export function candidates(p: Profile): Exercise[] {
 export function prescription(e: Exercise, p: Profile): Pick<PlanExercise, 'sets' | 'reps' | 'rest'> {
   const big = e.compound;
   const sets = p.experience === 'beginner' ? 3 : big && p.experience === 'advanced' ? 4 : 3;
-  if (e.equipment === 'Poids du corps') return { sets, reps: [8, 20], rest: 90 };
+  if (e.equipment === 'Poids du corps') return { sets, reps: [8, 20], rest: 90 }; // rest > 60 s helps hypertrophy (Singer 2024)
   const table: Record<string, [[number, number], number, [number, number], number]> = {
     strength: [[3, 6], 180, [8, 12], 90],
-    muscle: [[6, 10], 150, [10, 15], 75],
-    fat: [[8, 12], 120, [12, 15], 60],
-    fit: [[8, 12], 90, [12, 15], 60],
+    muscle: [[6, 10], 150, [10, 15], 90],
+    fat: [[8, 12], 120, [12, 15], 90],
+    fit: [[8, 12], 120, [12, 15], 90],
   };
   const [cr, crest, ir, irest] = table[p.goal] ?? table.muscle;
   return { sets, reps: big ? cr : ir, rest: big ? crest : irest };
@@ -134,32 +134,59 @@ export function templatePlan(p: Profile): Plan {
   return withVolume(plan, volumeTargets(p.experience));
 }
 
-// Weekly hard sets per muscle group a programme should reach (evidence: ~10-20 for hypertrophy),
-// raised to what the user already does, so a new programme never trains them less.
+// Volume rules, from the research (sources in AUDIT.md):
+// - 10-20 hard sets per muscle per week (Baz-Valle 2022: 12-20 for trained lifters; beginners at the low end),
+//   no extra benefit shown above 20;
+// - about 10-11 useful sets per muscle in one session (Remmert, Pelland et al., per-session meta-regression);
+// - frequency barely matters once weekly volume is equal (Schoenfeld 2019), so any split works.
+export const WEEKLY_MAX = 20;
+export const SESSION_MAX_PER_MUSCLE = 12;
+const MAX_SETS_PER_EXERCISE = 5;
+const MAX_SETS_PER_SESSION = 25;
 const MAIN = ['Pecs', 'Dos', 'Épaules', 'Quadriceps', 'Ischios'];
+
+// Weekly sets each group should reach: the evidence-based minimum for the level,
+// raised to what the user already does (never above 20), so a new programme never trains them less.
 export function volumeTargets(experience: string, current: Record<string, number> = {}) {
   const level = experience === 'beginner' ? 0 : experience === 'advanced' ? 2 : 1;
   const base: Record<string, number> = {
-    ...Object.fromEntries(MAIN.map((g) => [g, [10, 14, 16][level]])),
-    Biceps: [8, 10, 12][level], Triceps: [8, 10, 12][level], Mollets: [6, 8, 10][level], Fessiers: [4, 6, 8][level], Abdos: [4, 6, 6][level],
+    ...Object.fromEntries(MAIN.map((g) => [g, [10, 12, 14][level]])),
+    Biceps: [6, 8, 10][level], Triceps: [6, 8, 10][level], Mollets: [6, 8, 10][level], Fessiers: [4, 6, 8][level], Abdos: [4, 6, 6][level],
   };
-  for (const [g, n] of Object.entries(current)) base[g] = Math.max(base[g] ?? 0, Math.min(30, Math.round(n)));
+  for (const [g, n] of Object.entries(current)) base[g] = Math.min(WEEKLY_MAX, Math.max(base[g] ?? 0, Math.round(n)));
   return base;
 }
 
-// Adds sets (up to 5 per exercise) to the exercises of each group below its weekly target,
-// without making any session longer than 25 sets.
-const MAX_SETS_PER_EXERCISE = 5;
-const MAX_SETS_PER_SESSION = 25;
+const setsOf = (exercises: PlanExercise[], group?: string) =>
+  exercises.reduce((t, e) => t + (group === undefined || e.group === group ? e.sets : 0), 0);
+
+// Keeps a programme within the limits (5 sets per exercise, 12 sets per muscle per session,
+// 25 sets per session, 20 sets per muscle per week), then brings each group up to its weekly target.
 export function withVolume(plan: Plan, targets: Record<string, number>): Plan {
-  const days = plan.days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e })) }));
-  const dayTotal = (d: PlanDay) => d.exercises.reduce((t, e) => t + e.sets, 0);
+  const days = plan.days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e, sets: Math.min(e.sets, MAX_SETS_PER_EXERCISE) })) }));
+  const trim = (list: PlanExercise[], excess: number) => {
+    for (; excess > 0; excess--) {
+      const e = list.filter((x) => x.sets > 2).sort((a, b) => b.sets - a.sets)[0];
+      if (!e) break;
+      e.sets--;
+    }
+  };
+  for (const d of days) {
+    for (const g of new Set(d.exercises.map((e) => e.group))) {
+      trim(d.exercises.filter((e) => e.group === g), setsOf(d.exercises, g) - SESSION_MAX_PER_MUSCLE);
+    }
+    trim(d.exercises, setsOf(d.exercises) - MAX_SETS_PER_SESSION);
+  }
+  const all = days.flatMap((d) => d.exercises);
+  for (const g of new Set(all.map((e) => e.group))) trim(all.filter((e) => e.group === g), setsOf(all, g) - WEEKLY_MAX);
+
   for (const [group, target] of Object.entries(targets)) {
     const slots = days.flatMap((d) => d.exercises.filter((e) => e.group === group).map((e) => ({ d, e })));
     let total = slots.reduce((t, x) => t + x.e.sets, 0);
-    while (total < target) {
+    while (total < Math.min(target, WEEKLY_MAX)) {
       const next = slots
-        .filter((x) => x.e.sets < MAX_SETS_PER_EXERCISE && dayTotal(x.d) < MAX_SETS_PER_SESSION)
+        .filter((x) => x.e.sets < MAX_SETS_PER_EXERCISE && setsOf(x.d.exercises) < MAX_SETS_PER_SESSION
+          && setsOf(x.d.exercises, group) < SESSION_MAX_PER_MUSCLE)
         .sort((a, b) => a.e.sets - b.e.sets)[0];
       if (!next) break;
       next.e.sets++;

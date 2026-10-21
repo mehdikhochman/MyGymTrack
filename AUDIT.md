@@ -38,3 +38,23 @@
 - ~3 900 lignes TypeScript (dont 300 de données d’aliments et de programmes), sans framework CSS ni librairie d'état. Toute la logique métier testable est en fonctions pures (`lib/streak.ts`, `lib/plan.ts`, `lib/nutrition.ts`, `nextTarget`).
 - Un seul fichier parle à l'IA (`lib/ai.ts`), un seul au client SQL (`lib/db.ts` + actions).
 - Coût de performance de la v2 : une requête de plus par page (vérification de session). Les pages restent préchargées et les actions optimistes (écran mis à jour avant la réponse du serveur).
+
+## Audit des règles d'entraînement et de nutrition (sources)
+
+Chaque chiffre utilisé par l'app (programmes, coach IA, objectifs) a été vérifié dans la littérature. Ce qui était faux a été corrigé.
+
+| Règle | Avant | Recherche | Maintenant |
+|---|---|---|---|
+| Séries par muscle et par semaine | plancher relevé au volume actuel, jusqu'à 30 ; un jour de routine compté deux fois → objectif de 29 séries pour le dos | 12-20 séries/semaine pour des pratiquants entraînés, pas de bénéfice démontré au-delà de 20 ([Baz-Valle 2022](https://pmc.ncbi.nlm.nih.gov/articles/PMC8884877/)) ; rendements décroissants ([Pelland et al., prépublication](https://sportrxiv.org/index.php/server/preprint/view/537)) | 10-14 selon le niveau (bras, mollets : moins, car travaillés aussi indirectement), jamais plus de **20** |
+| Séries par muscle dans une séance | jusqu'à 20 en bro split | environ 11 séries « fractionnaires » par muscle et par séance, au-delà pas de gain détectable ([Remmert, Pelland et al., prépublication](https://sportrxiv.org/index.php/server/preprint/view/537)) | **12** maximum par muscle et par séance, 25 séries maximum par séance |
+| Fréquence (bro split ou non) | — | à volume égal, la fréquence ne change quasiment rien pour l'hypertrophie ([Schoenfeld, Grgic, Krieger 2019](https://ro.ecu.edu.au/ecuworkspost2013/5665)) | toutes les organisations sont proposées, la tienne est gardée |
+| Repos entre séries | 60-75 s sur l'isolation | petit avantage au-delà de 60 s, pas de différence au-delà de 90 s ([Singer et al. 2024](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1429789/text)) | **90 s minimum** en isolation, 2-3 min sur les gros mouvements |
+| Protéines | 1,6-2,2 g/kg | plateau vers 1,6 g/kg, intervalle de confiance large ([Morton 2018](https://pubmed.ncbi.nlm.nih.gov/28698222/)) ; 1,6-2,2 g/kg ([Iraki 2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6680710/)) | inchangé (1,6 forme → 2,2 perte de gras) |
+| Surplus en prise de muscle | +10 % pour tous | +10-20 % débutant/intermédiaire, plus prudent pour un confirmé ; viser +0,25-0,5 % du poids par semaine ([Iraki 2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6680710/)) | +10 %, **+5 % pour un confirmé** ; objectif conseillé sur la dépense réelle : +0,25 kg/sem |
+| Lipides, glucides | 0,9 g/kg, glucides = le reste | lipides 0,5-1,5 g/kg, glucides ≥ 3-5 g/kg ([Iraki 2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6680710/)) | inchangé (testé) |
+| Perte de gras | −20 % | perte de 0,5-1 % du poids par semaine pour garder le muscle ([Helms, Aragon, Fitschen 2014](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4033492/)) | −20 % au départ, puis −500 kcal/j sur la dépense réelle (~0,5-0,6 %/sem pour 75 kg) |
+| Progression | +5 kg aux poulies | — (pas de littérature précise) | +2,5 kg aux poulies, +5 kg machines, +2 kg haltères, +2,5 kg barre |
+
+Contrôles automatiques (`npm test`) : aucun programme (modèles, coach IA, routine reprise de l'historique) ne peut dépasser 20 séries par muscle et par semaine, 12 par muscle et par séance, 25 par séance ; repos ≥ 90 s dans les modèles ; une routine bro split sur 4 semaines est retrouvée en 5 jours exactement ; objectifs nutritionnels dans les fourchettes publiées. Les programmes déjà enregistrés sont ramenés dans ces limites à l'affichage.
+
+Limites honnêtes : les seuils par séance viennent d'une prépublication (pas encore relue par des pairs) ; la plupart des études portent sur de jeunes hommes ; seules les séries directes (muscle principal de l'exercice) sont comptées.

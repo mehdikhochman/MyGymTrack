@@ -118,8 +118,8 @@ Règles, dans cet ordre de priorité :
    - "bro", "ppl", "upper_lower", "full" : utilise cette organisation.
    - "auto" ou pas d'historique : choisis l'organisation la plus adaptée à son nombre de séances par semaine.
 2. Garde ses exercices habituels (current_routine) : c'est le cœur du programme. Ne remplace un exercice que s'il le demande, si son matériel ne le permet pas, ou pour une vraie raison que tu expliques. Tu peux ajouter un exercice pour un muscle oublié.
-3. Volume : chaque groupe musculaire atteint au moins volume_targets[groupe] séries dures par semaine (c'est au moins ce qu'il fait déjà). Ne baisse jamais le volume, sauf demande ou signe clair de fatigue (séances manquées, charges en baisse). En bro split, le muscle du jour reçoit tout son volume dans sa séance (souvent 12 à 20 séries).
-4. Ensuite seulement, optimise : polyarticulaires d'abord ; répétitions selon l'objectif (force 3-6 sur les gros mouvements, muscle 6-12 et isolation 10-15, perte de gras 8-15) ; repos 2-3 min sur les gros mouvements, 60-90 s sur l'isolation ; un muscle oublié (mollets, arrière d'épaules…).
+3. Volume (données de la recherche) : 10 à 20 séries dures par muscle et par semaine ; au moins volume_targets[groupe] (c'est déjà ce qu'il fait ou le minimum pour son niveau) ; jamais plus de 20 par semaine ni plus de 12 séries pour un même muscle dans une séance (au-delà, pas de bénéfice démontré) ; 25 séries maximum par séance. Ne baisse jamais le volume, sauf demande ou signe clair de fatigue (séances manquées, charges en baisse).
+4. Ensuite seulement, optimise : polyarticulaires d'abord ; répétitions selon l'objectif (force 3-6 sur les gros mouvements, muscle 6-12 et isolation 10-15, perte de gras 8-15) ; repos 2-3 min sur les gros mouvements, au moins 90 s sur l'isolation ; un muscle oublié (mollets, arrière d'épaules…).
 Le résumé (summary) dit en 2-3 phrases ce que tu as gardé, ce que tu as changé et pourquoi.
 Exercices : uniquement ceux des listes fournies, par leur id (bibliothèque) ou "perso:<nom exact>" (ses exercices à lui).
 ${SAFETY}`;
@@ -187,7 +187,7 @@ export async function generatePlan(
       const lo = clamp(x.reps_min, 1, 30);
       return {
         id: x.id, name: e.name, group: e.group,
-        sets: clamp(x.sets, 1, 8), reps: [lo, clamp(x.reps_max, lo, 30)] as [number, number], rest: clamp(x.rest_s, 30, 300),
+        sets: clamp(x.sets, 1, 8), reps: [lo, clamp(x.reps_max, lo, 30)] as [number, number], rest: clamp(x.rest_s, 60, 300),
         ...(x.note.trim() && { note: x.note.trim().slice(0, 140) }),
       };
     }),
@@ -201,6 +201,7 @@ export async function generatePlan(
 const COACH_SYSTEM = `Tu es un coach de musculation et de nutrition fondé sur les preuves.
 Tu analyses les données d'entraînement et d'alimentation fournies et tu réponds en français, en tutoyant, de façon courte, concrète et chiffrée.
 Compare le volume réalisé au volume prévu par le programme, la progression des charges, la régularité, les apports et l'évolution du poids par rapport à l'objectif.
+Repères de la recherche à respecter dans tes conseils : 10 à 20 séries dures par muscle et par semaine, 12 au maximum pour un muscle dans une séance ; repos d'au moins 90 s ; protéines 1,6 à 2,2 g/kg ; prise de poids visée 0,25 à 0,5 % du poids par semaine (moins pour un confirmé), perte 0,5 à 1 % par semaine. Garde l'organisation et les exercices de l'utilisateur.
 ${SAFETY}`;
 
 const REPORT_SCHEMA = {

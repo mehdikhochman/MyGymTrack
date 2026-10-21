@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { DEFAULT_SETTINGS, addDays, monday, today } from './config';
-import type { Plan } from './plan';
+import { withVolume, type Plan } from './plan';
 
 // The Neon integration on Vercel sets DATABASE_URL or POSTGRES_URL depending on its prefix setting.
 export const sql = neon((process.env.DATABASE_URL || process.env.POSTGRES_URL)!);
@@ -103,7 +103,8 @@ export async function activity(uid: number) {
 
 export async function currentPlan(uid: number) {
   const [r] = await sql`select id, created_at::text as created_at, content from plans where user_id = ${uid} order by id desc limit 1`;
-  return r ? { id: r.id as number, created_at: r.created_at as string, ...(r.content as Plan) } : null;
+  // Programmes saved before the volume limits existed are brought within them when read.
+  return r ? { id: r.id as number, created_at: r.created_at as string, ...withVolume(r.content as Plan, {}) } : null;
 }
 
 // Programme day to do next: the one after the last day trained since the plan was created.

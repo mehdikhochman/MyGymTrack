@@ -46,7 +46,7 @@ export function nextTarget(last: { weight_kg: number; reps: number }[], [lo, hi]
 
 // Smallest sensible jump for the equipment.
 export const weightStep = (equipment?: string) =>
-  equipment === 'Haltères' || equipment === 'Kettlebell' ? 2 : equipment === 'Poulie' || equipment === 'Machine' ? 5 : 2.5;
+  equipment === 'Haltères' || equipment === 'Kettlebell' ? 2 : equipment === 'Machine' ? 5 : 2.5;
 
 const TZ = 'Europe/Paris';
 

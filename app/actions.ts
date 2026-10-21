@@ -10,7 +10,7 @@ import { aiEnabled, aiErrorMessage, coachReport, generatePlan, translateSteps } 
 import { coachData } from '@/lib/coach';
 import { EXERCISES, exerciseById, exerciseByName } from '@/lib/exercises';
 import { nutritionTargets } from '@/lib/nutrition';
-import { candidates, templatePlan, volumeTargets } from '@/lib/plan';
+import { candidates, templatePlan, volumeTargets, weeklySetsOf, withVolume } from '@/lib/plan';
 import { routineFromHistory } from '@/lib/routine';
 import steps from '@/lib/exercise-steps.json';
 
@@ -197,8 +197,13 @@ export async function makePlan(_: string | undefined, fd: FormData) {
   const mode = fd.get('mode');
   let plan;
   if (mode === 'routine') {
-    plan = routineFromHistory(history, Number(settings.rest));
-    if (!plan) return 'Pas encore assez de séances notées pour reprendre ta routine : note au moins une semaine d’entraînement.';
+    const routine = routineFromHistory(history, Number(settings.rest));
+    if (!routine) return 'Pas encore assez de séances notées pour reprendre ta routine : note au moins une semaine d’entraînement.';
+    // Same days and exercises; only sets beyond the evidence-based limits are removed.
+    plan = withVolume(routine, {});
+    const before = weeklySetsOf(routine), after = weeklySetsOf(plan);
+    const trimmed = Object.keys(before).filter((g) => after[g] < before[g]);
+    if (trimmed.length) plan.summary += ` Séries réduites pour ${trimmed.join(', ')} : au-delà de 12 séries par muscle et par séance ou de 20 par semaine, la recherche ne montre pas de gain.`;
   } else if (mode === 'template') {
     plan = templatePlan({ ...user, split });
   } else {

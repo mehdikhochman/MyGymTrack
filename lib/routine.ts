@@ -13,8 +13,17 @@ export function mainGroups(sets: HistorySession['sets']) {
 
 const GENERIC = new Set(['Séance', 'Séance libre']);
 
-// The user's current routine, rebuilt from their logged sessions: one day per kind of session
-// (same main muscle groups), taken from its latest occurrence with the same exercises, order and number of sets.
+// Two sessions are the same kind of day when they share their most trained group,
+// or when most of their main groups are the same (e.g. an arms day led once by biceps, once by triceps).
+function sameKind(a: string[], b: string[]) {
+  if (a[0] === b[0]) return true;
+  const common = a.filter((g) => b.includes(g)).length;
+  return common / new Set([...a, ...b]).size >= 0.5;
+}
+
+// The user's current routine, rebuilt from their logged sessions of the last 4 weeks:
+// sessions are grouped by kind of day, the N most frequent kinds are kept (N = sessions per week),
+// and each day copies its latest occurrence: same exercises, order and number of sets.
 export function routineFromHistory(sessions: HistorySession[], rest: number): Plan | null {
   const typed = sessions
     .filter((s) => s.sets.length >= 3)
@@ -22,11 +31,22 @@ export function routineFromHistory(sessions: HistorySession[], rest: number): Pl
     .sort((a, b) => a.date.localeCompare(b.date));
   if (!typed.length) return null;
   const lastDate = typed[typed.length - 1].date;
-  const latest = new Map<string, (typeof typed)[number]>();
-  for (const s of typed) latest.set([...s.main].sort().join('+'), s);
-  const recent = [...latest.values()].filter((s) => daysBetween(s.date, lastDate) <= 28).sort((a, b) => a.date.localeCompare(b.date));
+  const window = typed.filter((s) => daysBetween(s.date, lastDate) < 28);
 
-  const days: PlanDay[] = recent.map((s) => {
+  const kinds: { main: string[]; count: number; latest: (typeof typed)[number] }[] = [];
+  for (const s of window) {
+    const kind = kinds.find((k) => sameKind(k.main, s.main));
+    if (kind) Object.assign(kind, { count: kind.count + 1, latest: s, main: s.main });
+    else kinds.push({ main: s.main, count: 1, latest: s });
+  }
+  const perWeek = Math.min(7, Math.max(1, Math.round(window.length / Math.max(1, Math.ceil((daysBetween(window[0].date, lastDate) + 1) / 7)))));
+  const kept = [...kinds]
+    .sort((a, b) => b.count - a.count || b.latest.date.localeCompare(a.latest.date))
+    .slice(0, perWeek)
+    .sort((a, b) => a.latest.date.localeCompare(b.latest.date))
+    .map((k) => k.latest);
+
+  const days: PlanDay[] = kept.map((s) => {
     const names = [...new Set(s.sets.map((x) => x.exercise))];
     return {
       name: s.title && !GENERIC.has(s.title) ? s.title : s.main.join(' + '),
