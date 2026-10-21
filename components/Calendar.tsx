@@ -7,7 +7,7 @@ const HEAD = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 export default function Calendar({ streak, workouts, today }: { streak: Streak; workouts: string[]; today: string }) {
   const start = addDays(monday(today), -28);
   const days = Array.from({ length: 35 }, (_, i) => addDays(start, i));
-  const label = { workout: 'séance', active: 'série gardée', frozen: 'gel utilisé', missed: 'manqué' } as const;
+  const label = { workout: 'séance', active: 'série gardée', frozen: 'joker utilisé', missed: 'manqué' } as const;
   return (
     <>
       <div className="cal" role="grid" aria-label="5 dernières semaines">
@@ -23,8 +23,8 @@ export default function Calendar({ streak, workouts, today }: { streak: Streak; 
       </div>
       <div className="legend">
         <span><i style={{ background: 'var(--blue)' }} />Séance</span>
-        <span><i style={{ background: 'var(--flame)' }} />Série gardée</span>
-        <span><i style={{ background: 'var(--ice-soft)' }} />Gel utilisé</span>
+        <span><i style={{ background: 'var(--flame-soft)' }} />Repas ou pesée</span>
+        <span><i style={{ background: 'var(--ice-soft)' }} />Joker utilisé</span>
         <span><i style={{ boxShadow: 'inset 0 0 0 1.5px var(--track)' }} />Manqué</span>
       </div>
     </>

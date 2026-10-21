@@ -7,7 +7,11 @@ import { addDays, fmt, formatDate, monday, plural, today } from '@/lib/config';
 import { activity, sql, weightTrend } from '@/lib/db';
 import { MAX_FREEZES, computeStreak, weekStreak } from '@/lib/streak';
 
-export default async function Progress() {
+const TABS = [['serie', 'Série'], ['records', 'Records'], ['poids', 'Poids'], ['historique', 'Séances']] as const;
+
+export default async function Progress({ searchParams }: { searchParams: Promise<{ vue?: string }> }) {
+  const asked = (await searchParams).vue;
+  const vue = TABS.some(([k]) => k === asked) ? asked : 'serie';
   const user = await requireUser();
   const uid = user.id;
   const [act, records, weights, trend, sessions] = await Promise.all([
@@ -37,7 +41,13 @@ export default async function Progress() {
     <>
       <h1>Progrès</h1>
       <p className="lede">La régularité fait le résultat.</p>
+      <nav className="subtabs" aria-label="Sections">
+        {TABS.map(([k, label]) => (
+          <Link key={k} href={k === 'serie' ? '/progres' : `/progres?vue=${k}`} prefetch className={vue === k ? 'on' : ''} aria-current={vue === k ? 'page' : undefined}>{label}</Link>
+        ))}
+      </nav>
 
+      {vue === 'serie' && (<>
       <div className="card">
         <div className={streak.doneToday ? 'streak-card' : 'streak-card cold'}>
           <Flame size={64} lit={streak.current > 0} />
@@ -46,12 +56,12 @@ export default async function Progress() {
             <b>{streak.current > 1 ? 'jours d’affilée' : 'jour d’affilée'}</b>
           </div>
           <div className="stack" style={{ alignItems: 'flex-end', gap: 6 }}>
-            <span className="freeze"><Icon name="snow" size={16} /> {streak.freezes}/{MAX_FREEZES} gels</span>
+            <span className="freeze"><Icon name="shield" size={16} /> {streak.freezes}/{MAX_FREEZES} jokers</span>
             <span className="muted small">Record : {plural(streak.best, 'jour')}</span>
           </div>
         </div>
         <p className="muted small" style={{ marginTop: 10 }}>
-          Une séance, un repas ou une pesée par jour garde la flamme. Tous les 7 jours tu gagnes un gel (2 max) qui protège un jour manqué.
+          Pour garder ta flamme, note chaque jour une séance, un repas ou ton poids. Tous les 7 jours, tu gagnes un joker (2 max) : il sauve ta série si tu oublies un jour.
         </p>
         {streak.next && (
           <div className="meter">
@@ -65,13 +75,14 @@ export default async function Progress() {
 
       <div className="card row">
         <div>
-          <b>Objectif hebdo : {user.days_per_week} séances</b>
-          <p className="muted small">{week.weeks > 0 ? `${plural(week.weeks, 'semaine')} d’affilée réussie${week.weeks > 1 ? 's' : ''}` : 'Remplis ta barre cette semaine pour lancer la série.'}</p>
+          <b>Objectif de la semaine</b>
+          <p className="muted small">{week.thisWeek} / {plural(user.days_per_week, 'séance')} cette semaine.{week.weeks > 0 ? ` Objectif tenu ${plural(week.weeks, 'semaine')} d’affilée.` : ''}</p>
         </div>
         <span className="num" style={{ fontSize: 30 }}>{week.thisWeek}/{user.days_per_week}</span>
       </div>
+      </>)}
 
-      <h2>Records</h2>
+      {vue === 'records' && (<>
       {records.length === 0 ? (
         <p className="muted">Tes meilleures séries apparaîtront ici après tes premières séances.</p>
       ) : (
@@ -93,10 +104,14 @@ export default async function Progress() {
       )}
       <p className="muted tiny">Charge maximale estimée sur une répétition (formule d’Epley).</p>
 
-      <h2>Poids de corps</h2>
+      </>)}
+
+      {vue === 'poids' && (<>
       <Weights weights={weights as Weight[]} trend={trend} />
 
-      <h2>Historique</h2>
+      </>)}
+
+      {vue === 'historique' && (<>
       {sessions.length === 0 ? (
         <p className="muted">Aucune séance pour l’instant.</p>
       ) : (
@@ -109,6 +124,7 @@ export default async function Progress() {
           ))}
         </div>
       )}
+      </>)}
     </>
   );
 }

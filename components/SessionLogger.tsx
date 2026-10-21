@@ -8,7 +8,7 @@ import ExerciseDemo, { Thumb } from './ExerciseDemo';
 import ExercisePicker, { type Picked } from './ExercisePicker';
 import Icon from './Icon';
 import RestTimer, { unlockSound } from './RestTimer';
-import { e1rm, fmt, formatDate, nextTarget, plural, weightStep } from '@/lib/config';
+import { e1rm, nextTarget, plural, weightStep } from '@/lib/config';
 import { exerciseByName } from '@/lib/exercises';
 import { deletedSessions, unsentDeletes } from '@/lib/instant';
 import type { Perf, Set } from '@/lib/db';
@@ -32,7 +32,7 @@ type Props = {
 const short = (p: { weight_kg: number; reps: number }) => `${p.weight_kg}×${p.reps}`;
 
 // Every action updates the screen first and syncs with the server in the background.
-export default function SessionLogger({ sessionId, title, date, startedAt, planned, initialSets, last: lastProp, best: bestProp, rest, custom }: Props) {
+export default function SessionLogger({ sessionId, title, startedAt, planned, initialSets, last: lastProp, best: bestProp, rest, custom }: Props) {
   const router = useRouter();
   // Frozen: later refreshes would include this session's own sets.
   const [last] = useState(lastProp);
@@ -138,7 +138,6 @@ export default function SessionLogger({ sessionId, title, date, startedAt, plann
     router.push('/');
   }
 
-  const volume = sets.reduce((t, s) => t + s.weight_kg * s.reps, 0);
   const minutes = Math.max(0, Math.floor((now - startedAt) / 60_000));
 
   return (
@@ -147,7 +146,7 @@ export default function SessionLogger({ sessionId, title, date, startedAt, plann
         <Link href="/" className="icon-btn" aria-label="Retour"><Icon name="back" /></Link>
         <div className="title">
           <b className="ellipsis">{title}</b>
-          <span className="muted small">{formatDate(date)} · {minutes} min · {plural(sets.length, 'série')} · {fmt(volume)} kg</span>
+          <span className="muted small">{minutes} min · {plural(sets.length, 'série')} faite{sets.length > 1 ? 's' : ''}</span>
         </div>
         <button className="primary finish" onClick={() => finish()}>Terminer</button>
       </header>
@@ -177,14 +176,12 @@ export default function SessionLogger({ sessionId, title, date, startedAt, plann
               <div className="ex-body">
                 {lib && lib.images > 0 && <ExerciseDemo id={lib.id} name={c.name} />}
                 {prev && t && Number.isFinite(t.weight_kg) && (
-                  <span className="target"><Icon name="trophy" size={16} /> Objectif {t.weight_kg} kg × {t.reps}</span>
+                  <span className="target"><Icon name="trophy" size={16} /> Objectif du jour : {String(t.weight_kg).replace('.', ',')} kg × {t.reps}</span>
                 )}
                 {c.note && <p className="note">{c.note}</p>}
-                <p className="muted small">
-                  {prev ? <>Dernière fois · {formatDate(prev[0].date)} · {prev.map(short).join('  ')}</> : 'Première fois : choisis une charge que tu soulèves proprement.'}
-                </p>
+                {!prev && <p className="muted small">Première fois : choisis une charge que tu soulèves proprement.</p>}
                 <table className="sets">
-                  <thead><tr><th>Série</th><th>Précédent</th><th>kg</th><th>Reps</th><th><span className="sr">Fait</span></th></tr></thead>
+                  <thead><tr><th>Série</th><th>Dernière fois</th><th>kg</th><th>Reps</th><th><span className="sr">Fait</span></th></tr></thead>
                   <tbody>
                     {done.map((s, i) => {
                       const record = best[c.name] !== undefined && e1rm(s) > best[c.name];

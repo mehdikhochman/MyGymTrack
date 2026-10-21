@@ -147,16 +147,22 @@ export function volumeTargets(experience: string, current: Record<string, number
   return base;
 }
 
-// Adds sets (up to 5 per exercise) to the exercises of each group below its weekly target.
+// Adds sets (up to 5 per exercise) to the exercises of each group below its weekly target,
+// without making any session longer than 25 sets.
+const MAX_SETS_PER_EXERCISE = 5;
+const MAX_SETS_PER_SESSION = 25;
 export function withVolume(plan: Plan, targets: Record<string, number>): Plan {
   const days = plan.days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e })) }));
+  const dayTotal = (d: PlanDay) => d.exercises.reduce((t, e) => t + e.sets, 0);
   for (const [group, target] of Object.entries(targets)) {
-    const list = days.flatMap((d) => d.exercises).filter((e) => e.group === group);
-    let total = list.reduce((t, e) => t + e.sets, 0);
-    while (list.length && total < target) {
-      const e = list.filter((x) => x.sets < 5).sort((a, b) => a.sets - b.sets)[0];
-      if (!e) break;
-      e.sets++;
+    const slots = days.flatMap((d) => d.exercises.filter((e) => e.group === group).map((e) => ({ d, e })));
+    let total = slots.reduce((t, x) => t + x.e.sets, 0);
+    while (total < target) {
+      const next = slots
+        .filter((x) => x.e.sets < MAX_SETS_PER_EXERCISE && dayTotal(x.d) < MAX_SETS_PER_SESSION)
+        .sort((a, b) => a.e.sets - b.e.sets)[0];
+      if (!next) break;
+      next.e.sets++;
       total++;
     }
   }

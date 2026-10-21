@@ -2,16 +2,18 @@
 
 import { useActionState } from 'react';
 import { makePlan, runCoach } from '@/app/actions';
+import Icon from './Icon';
 import Submit from './Submit';
 import { SPLIT_CHOICES } from '@/lib/config';
 
 // New programme: written by the AI coach (from the user's routine, history and wishes),
 // rebuilt from the user's own sessions, or the built-in one for the chosen split.
-export function PlanForm({ ai, split, hasHistory }: { ai: boolean; split: string; hasHistory: boolean }) {
+export function PlanForm({ ai, split, hasHistory, open }: { ai: boolean; split: string; hasHistory: boolean; open: boolean }) {
   const [message, run] = useActionState(makePlan, undefined);
   return (
-    <form action={run} className="card stack">
-      <h3>Changer de programme</h3>
+    <details className="card" open={open || !!message}>
+    <summary className="row" style={{ minHeight: 44 }}><b>Changer de programme</b><Icon name="chevron" size={18} /></summary>
+    <form action={run} className="stack" style={{ marginTop: 12 }}>
       <label className="field">Organisation de tes séances
         <select name="split" defaultValue={split}>
           {Object.entries(SPLIT_CHOICES).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
@@ -30,6 +32,7 @@ export function PlanForm({ ai, split, hasHistory }: { ai: boolean; split: string
       {ai && <Submit className={hasHistory ? 'soft big' : 'primary big'} pendingText="Le coach écrit ton programme… (≈ 1 min)">Demander au coach IA</Submit>}
       <button name="mode" value="template" className="soft">Programme de base pour cette organisation</button>
     </form>
+    </details>
   );
 }
 

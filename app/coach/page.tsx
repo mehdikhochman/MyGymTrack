@@ -47,7 +47,7 @@ export default async function Coach() {
   return (
     <>
       <h1>Coach</h1>
-      <p className="lede">Ton programme, tes séries de la semaine et l’analyse de tes données.</p>
+      <p className="lede">Ton programme et les conseils du coach.</p>
 
       {plan ? (
         <>
@@ -56,43 +56,45 @@ export default async function Coach() {
               <h2 style={{ margin: 0 }}>{plan.name}</h2>
               <span className={plan.source === 'template' ? 'badge gold' : plan.source === 'routine' ? 'badge green' : 'badge'}>{SOURCE[plan.source] ?? 'Programme'}</span>
             </div>
-            <p className="muted small">Depuis le {formatDate(plan.created_at.slice(0, 10))} · {plural(plan.days.length, 'séance')} en rotation</p>
-            <p style={{ marginTop: 8 }}>{plan.summary}</p>
+            <p className="muted small">{plural(plan.days.length, 'séance')}, à faire dans l’ordre · depuis le {formatDate(plan.created_at.slice(0, 10))}</p>
+            <p className="small" style={{ marginTop: 8 }}>{plan.summary}</p>
+            <div className="list" style={{ margin: '10px -16px -8px' }}>
+              {plan.days.map((d, i) => (
+                <details key={i} className="item" style={{ display: 'block' }}>
+                  <summary className="row" style={{ minHeight: 44 }}>
+                    <b className="grow">{i + 1}. {d.name}</b>
+                    <span className="muted small">{plural(d.exercises.length, 'exercice')} · {d.exercises.reduce((t, e) => t + e.sets, 0)} séries</span>
+                    <span className="chev"><Icon name="chevron" size={18} /></span>
+                  </summary>
+                  <div className="list" style={{ margin: '4px -16px 0' }}>
+                    {d.exercises.map((e) => (
+                      <Link key={e.id} href={exerciseById(e.id) ? `/exercices/${e.id}` : `/exercices?q=${encodeURIComponent(e.name)}`} className="item">
+                        <Thumb id={e.id} images={exerciseById(e.id)?.images} />
+                        <span className="grow">
+                          <span className="ellipsis" style={{ display: 'block', fontWeight: 700 }}>{e.name}</span>
+                          <span className="muted small">{e.sets} séries de {e.reps[0]} à {e.reps[1]} · repos {e.rest >= 120 ? `${String(Math.round(e.rest / 60 * 10) / 10).replace('.', ',')} min` : `${e.rest} s`}</span>
+                          {e.note && <span className="muted tiny" style={{ display: 'block' }}>{e.note}</span>}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
 
-          <h2>Séries cette semaine</h2>
+          <h2>Séries faites cette semaine</h2>
           <div className="card">
             {Object.entries(volume).sort((a, b) => b[1] - a[1]).map(([group, target]) => (
               <Meter key={group} label={group} value={done[group] ?? 0} target={target} unit="séries" />
             ))}
-            <p className="muted tiny">Objectif fixé par le programme ; chaque série « dure » (proche de l’échec) compte.</p>
           </div>
-
-          <h2>Les séances</h2>
-          {plan.days.map((d, i) => (
-            <details key={i} className="card" open={i === 0}>
-              <summary><b>{d.name}</b> <span className="muted small">· {d.focus}</span></summary>
-              <div className="list" style={{ margin: '8px -16px -8px' }}>
-                {d.exercises.map((e) => (
-                  <Link key={e.id} href={exerciseById(e.id) ? `/exercices/${e.id}` : `/exercices?q=${encodeURIComponent(e.name)}`} className="item">
-                    <Thumb id={e.id} images={exerciseById(e.id)?.images} />
-                    <span className="grow">
-                      <span className="ellipsis" style={{ display: 'block', fontWeight: 700 }}>{e.name}</span>
-                      <span className="muted small">{e.sets} × {e.reps[0]}-{e.reps[1]} · repos {e.rest >= 120 ? `${String(Math.round(e.rest / 60 * 10) / 10).replace(".", ",")} min` : `${e.rest} s`}</span>
-                      {e.note && <span className="muted tiny" style={{ display: 'block' }}>{e.note}</span>}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </details>
-          ))}
         </>
       ) : (
-        <p className="muted">Pas encore de programme.</p>
+        <p className="muted">Pas encore de programme : choisis-en un ci-dessous.</p>
       )}
 
-      <PlanForm ai={ai} split={settings.split ?? 'keep'} hasHistory={hasHistory} />
-      <Link href="/exercices" className="card row"><span><Icon name="book" /> <b>Bibliothèque : 657 exercices</b></span><Icon name="chevron" size={18} /></Link>
+      <PlanForm ai={ai} split={settings.split ?? 'keep'} hasHistory={hasHistory} open={!plan} />
 
       <h2>Bilan de la semaine</h2>
       {ai ? <CoachRun /> : <p className="muted">Le coach IA n’est pas activé sur ce site (aucune clé OPENROUTER_API_KEY ou ANTHROPIC_API_KEY).</p>}
@@ -112,17 +114,20 @@ export default async function Coach() {
 
       {notes.length > 0 && (
         <>
-          <h2>Veille scientifique</h2>
-          <p className="muted small">Résumés d’études récentes trouvés chaque semaine par le coach.</p>
-          {notes.map((n) => (
-            <div key={n.id} className="card">
-              <h3>{n.title}</h3>
-              <p className="muted small" style={{ margin: '6px 0' }}>{n.summary}</p>
-              <a href={n.source_url} target="_blank" rel="noopener noreferrer nofollow" className="small">Source · {new URL(n.source_url).hostname}</a>
-            </div>
-          ))}
+          <h2>Pour aller plus loin</h2>
+          <details className="card">
+            <summary><b>Études récentes</b> <span className="muted small">({notes.length})</span></summary>
+            {notes.map((n) => (
+              <div key={n.id} style={{ marginTop: 14 }}>
+                <h3>{n.title}</h3>
+                <p className="muted small" style={{ margin: '6px 0' }}>{n.summary}</p>
+                <a href={n.source_url} target="_blank" rel="noopener noreferrer nofollow" className="small">Source · {new URL(n.source_url).hostname}</a>
+              </div>
+            ))}
+          </details>
         </>
       )}
+      <Link href="/exercices" className="card row"><span><Icon name="book" /> <b>Tous les exercices</b> <span className="muted small">(657, avec photos)</span></span><Icon name="chevron" size={18} /></Link>
     </>
   );
 }

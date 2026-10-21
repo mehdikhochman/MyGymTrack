@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Celebration from '@/components/Celebration';
 import Icon from '@/components/Icon';
 import { Thumb } from '@/components/ExerciseDemo';
-import { Barbell, Meter, StreakChip, WeekStrip } from '@/components/Streak';
+import { Meter, StreakChip, WeekStrip } from '@/components/Streak';
 import { requireUser } from '@/lib/auth';
 import { formatLongDate, monday, plural, today } from '@/lib/config';
 import { activity, currentPlan, dayTotals, getSettings, nextPlanDay, sql } from '@/lib/db';
@@ -38,30 +38,16 @@ export default async function Today() {
         </div>
         <div className="top-actions">
           <StreakChip streak={streak} />
-          <Link href="/reglages" prefetch className="avatar" aria-label="Réglages et profil">{user.name.slice(0, 1).toUpperCase()}</Link>
+          <Link href="/reglages" prefetch className="icon-btn soft" aria-label="Réglages et profil"><Icon name="settings" /></Link>
         </div>
       </div>
       <p className="lede">
         {streak.doneToday
-          ? 'Série gardée pour aujourd’hui. Reviens demain.'
+          ? `Bravo, ta série de ${plural(streak.current, 'jour')} continue. À demain !`
           : streak.current > 0
-            ? `Note une séance ou un repas avant minuit pour garder ta série de ${plural(streak.current, 'jour')}.`
-            : 'Note une séance ou un repas pour allumer ta série.'}
+            ? `Note une séance ou un repas aujourd’hui pour garder ta série de ${plural(streak.current, 'jour')} 🔥`
+            : 'Note une séance ou un repas pour lancer ta série 🔥'}
       </p>
-
-      <div className="card">
-        <div className="row">
-          <h2 style={{ margin: 0 }}>Charge ta barre</h2>
-          <span className="num" style={{ fontSize: 22 }}>{week.thisWeek}/{user.days_per_week}</span>
-        </div>
-        <Barbell done={week.thisWeek} goal={user.days_per_week} />
-        <p className="muted small center">
-          {week.thisWeek >= user.days_per_week ? 'Objectif de la semaine atteint.' : `Encore ${plural(user.days_per_week - week.thisWeek, 'séance')} cette semaine.`}
-          {week.weeks > 1 && ` ${week.weeks} semaines d’affilée.`}
-        </p>
-        <div className="divider" />
-        <WeekStrip streak={streak} workouts={act.workouts} today={today()} />
-      </div>
 
       {current && (
         <Link prefetch href={`/seance/${current.id}`} className="button primary big" style={{ marginBottom: 12 }}>
@@ -71,13 +57,9 @@ export default async function Today() {
 
       {day ? (
         <div className="card">
-          <div className="workout-head">
-            <div>
-              <span className="muted small">Séance du jour · {plan!.name}</span>
-              <h2 style={{ margin: '2px 0 0' }}>{day.name}</h2>
-            </div>
-            <Link href="/coach" prefetch className="ghost small">Programme</Link>
-          </div>
+          <span className="muted small">Ta séance du jour</span>
+          <h2 style={{ margin: '2px 0 4px' }}>{day.name}</h2>
+          <p className="muted small">{plural(day.exercises.length, 'exercice')} · {day.exercises.reduce((t, e) => t + e.sets, 0)} séries</p>
           <div className="list" style={{ margin: '8px -16px 12px' }}>
             {day.exercises.map((e) => (
               <div key={e.id} className="item">
@@ -87,17 +69,32 @@ export default async function Today() {
               </div>
             ))}
           </div>
-          <Link prefetch href={`/seance?jour=${next}`} className="button primary big">Commencer la séance</Link>
+          <Link prefetch href={`/seance?jour=${next}`} className="button primary big">Commencer</Link>
         </div>
       ) : (
         <Link href="/coach" prefetch className="card">
           <h2 style={{ margin: 0 }}>Pas encore de programme</h2>
-          <p className="muted">Le coach peut t’en écrire un en une minute.</p>
+          <p className="muted">Touche ici : le coach t’en prépare un.</p>
         </Link>
       )}
 
+      <div className="card">
+        <div className="row">
+          <h2 style={{ margin: 0 }}>Cette semaine</h2>
+          <span><span className="num" style={{ fontSize: 26 }}>{week.thisWeek}</span><span className="muted"> / {plural(user.days_per_week, 'séance')}</span></span>
+        </div>
+        <p className="muted small" style={{ marginBottom: 10 }}>
+          {week.thisWeek >= user.days_per_week ? 'Objectif atteint 💪' : `Encore ${plural(user.days_per_week - week.thisWeek, 'séance')} pour atteindre ton objectif.`}
+        </p>
+        <WeekStrip streak={streak} workouts={act.workouts} today={today()} />
+        <div className="legend">
+          <span><i style={{ background: 'var(--blue)' }} />Séance</span>
+          <span><i style={{ background: 'var(--flame-soft)' }} />Repas ou pesée</span>
+        </div>
+      </div>
+
       <Link href="/nutrition" prefetch className="card">
-        <div className="row"><h2 style={{ margin: 0 }}>Nutrition du jour</h2><Icon name="chevron" size={18} /></div>
+        <div className="row"><h2 style={{ margin: 0 }}>Manger aujourd’hui</h2><Icon name="chevron" size={18} /></div>
         <Meter label="Calories" value={food.kcal} target={Number(settings.kcal)} unit="kcal" />
         <Meter label="Protéines" value={food.protein} target={Number(settings.protein)} unit="g" kind="protein" />
       </Link>

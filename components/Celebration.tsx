@@ -6,7 +6,7 @@ import { Flame } from './Icon';
 
 const TEXT: Record<number, string> = {
   3: 'Trois jours de suite : l’habitude démarre.',
-  7: 'Une semaine complète. Tu gagnes un gel de série : il protège un jour manqué.',
+  7: 'Une semaine complète. Tu gagnes un joker : il sauve ta série si tu oublies un jour.',
   14: 'Deux semaines sans lâcher. Les résultats arrivent maintenant.',
   30: 'Un mois sans lâcher. Ton corps a déjà changé.',
 };
@@ -28,7 +28,7 @@ export default function Celebration({ days, freezes, workouts }: { days: number;
       <p>{TEXT[days] ?? 'Tu tiens le rythme. Chaque jour noté compte.'}</p>
       <div className="row" style={{ gap: 10, marginTop: 28 }}>
         <div className="card" style={{ background: 'var(--dark-2)', margin: 0, textAlign: 'left' }}><div className="muted small" style={{ color: 'var(--on-dark)' }}>Séances</div><div className="num" style={{ fontSize: 26 }}>{workouts}</div></div>
-        <div className="card" style={{ background: 'var(--dark-2)', margin: 0, textAlign: 'left' }}><div className="muted small" style={{ color: 'var(--on-dark)' }}>Gels</div><div className="num" style={{ fontSize: 26 }}>{freezes}</div></div>
+        <div className="card" style={{ background: 'var(--dark-2)', margin: 0, textAlign: 'left' }}><div className="muted small" style={{ color: 'var(--on-dark)' }}>Jokers</div><div className="num" style={{ fontSize: 26 }}>{freezes}</div></div>
       </div>
       <div className="actions">
         <button className="primary big" onClick={() => { setOpen(false); celebrated(days); }}>Continuer</button>

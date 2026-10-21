@@ -152,6 +152,7 @@ a.card { display: block; color: inherit; }
 .top .date { color: var(--muted); font-weight: 600; font-size: 15px; }
 .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font: 800 18px var(--display); color: var(--ink); }
 .flame-chip { display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 14px 0 10px; border-radius: 999px; background: var(--flame-soft); color: var(--flame); font: 900 24px var(--display); }
+.flame-chip .unit { font: 700 14px var(--text); margin-left: 2px; }
 .flame-chip.cold { background: var(--surface); color: var(--muted); }
 .top-actions { display: flex; gap: 8px; align-items: center; }
 
@@ -163,17 +164,6 @@ a.card { display: block; color: inherit; }
 .week .dot.workout { background: var(--blue); color: #fff; }
 .week .dot.frozen { background: var(--ice-soft); color: var(--ice); }
 .week .dot.today { box-shadow: inset 0 0 0 2.5px var(--ink); }
-
-/* Weekly goal as a barbell to load: one plate per planned session */
-.barbell { display: flex; align-items: center; justify-content: center; height: 92px; margin: 6px 0 2px; }
-.barbell .bar { height: 10px; flex: 1; max-width: 70px; background: var(--track); border-radius: 5px; }
-.barbell .sleeve { height: 16px; width: 18px; background: var(--track); border-radius: 3px; }
-.barbell .plates { display: flex; align-items: center; gap: 4px; }
-.plate { width: 16px; border-radius: 5px; background: var(--surface-2); border: 2px dashed var(--track); transition: background .3s, border-color .3s; }
-.plate.on { background: var(--blue); border: 2px solid var(--blue); }
-.plate:nth-child(1) { height: 86px; } .plate:nth-child(2) { height: 76px; } .plate:nth-child(3) { height: 66px; }
-.plate:nth-child(4) { height: 58px; } .plate:nth-child(5) { height: 50px; } .plate:nth-child(6) { height: 44px; }
-.barbell .collar { width: 8px; height: 30px; background: var(--muted); border-radius: 3px; }
 
 /* Meters */
 .meter { margin: 10px 0; }
@@ -257,7 +247,7 @@ table.sets tr.record td { background: var(--gold-soft); }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; }
 .cal .h { font-size: 12px; font-weight: 700; color: var(--muted); }
 .cal .c { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-size: 14px; font-weight: 600; background: var(--surface-2); color: var(--muted); }
-.cal .c.active { background: var(--flame); color: #fff; }
+.cal .c.active { background: var(--flame-soft); color: var(--flame); }
 .cal .c.workout { background: var(--blue); color: #fff; }
 .cal .c.frozen { background: var(--ice-soft); color: var(--ice); }
 .cal .c.missed { background: none; box-shadow: inset 0 0 0 1.5px var(--track); }
@@ -323,3 +313,14 @@ table.sets tr.record td { background: var(--gold-soft); }
 .skeleton { height: 120px; border-radius: 20px; background: var(--surface); margin-bottom: 12px; animation: pulse 1.2s ease-in-out infinite alternate; }
 .skeleton.title { height: 44px; width: 60%; }
 @keyframes pulse { from { opacity: .55; } to { opacity: 1; } }
+
+/* Expandable rows */
+summary.row { list-style: none; cursor: pointer; }
+summary.row::-webkit-details-marker { display: none; }
+details[open] > summary .chev { transform: rotate(90deg); }
+.top h1 { font-size: 34px; }
+
+/* Tabs inside a page */
+.subtabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: var(--track); margin-bottom: 16px; }
+.subtabs a { display: grid; place-items: center; min-height: 44px; border-radius: 11px; color: var(--muted); font-weight: 700; font-size: 15px; }
+.subtabs a.on { background: var(--surface); color: var(--ink); }
